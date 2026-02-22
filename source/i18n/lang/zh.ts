@@ -123,8 +123,7 @@ export const zh: TranslationKeys = {
 		delete: '删除',
 		addNew: '添加新提示词',
 		escBack: '[ESC] 返回',
-		navigationHint:
-			'↑↓ 选择提示词 | 空格 切换激活 | ←→ 选择操作 | Enter 确认',
+		navigationHint: '↑↓ 选择提示词 | 空格 切换激活 | ←→ 选择操作 | Enter 确认',
 		addNewTitle: '添加新系统提示词',
 		editTitle: '编辑系统提示词',
 		nameLabel: '名称:',
@@ -803,6 +802,8 @@ export const zh: TranslationKeys = {
 		codebaseSearching: '⏏ 代码库搜索 (尝试 {current}/{max})',
 		codebaseSearchAttempt: '尝试 {current}/{max}',
 		codebaseSearchComplete: '代码库搜索完成',
+		codebaseIndexingEnabled: '已为此项目启用代码库索引',
+		codebaseIndexingDisabled: '已为此项目禁用代码库索引',
 		// IDE
 		ideConnecting: '连接到 IDE...',
 		ideConnected: 'IDE 已连接',

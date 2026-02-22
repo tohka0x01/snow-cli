@@ -805,6 +805,8 @@ export type TranslationKeys = {
 		codebaseSearching: string;
 		codebaseSearchAttempt: string;
 		codebaseSearchComplete: string;
+		codebaseIndexingEnabled: string;
+		codebaseIndexingDisabled: string;
 		// IDE
 		ideConnecting: string;
 		ideConnected: string;

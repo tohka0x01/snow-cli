@@ -848,6 +848,8 @@ export const en: TranslationKeys = {
 		codebaseSearching: '⏏ Codebase Search (Attempt {current}/{max})',
 		codebaseSearchAttempt: 'Attempt {current}/{max}',
 		codebaseSearchComplete: 'Codebase search complete',
+		codebaseIndexingEnabled: 'Codebase indexing enabled for this project',
+		codebaseIndexingDisabled: 'Codebase indexing disabled for this project',
 		// IDE
 		ideConnecting: 'Connecting to IDE...',
 		ideConnected: 'IDE Connected',

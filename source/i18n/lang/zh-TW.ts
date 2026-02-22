@@ -803,6 +803,8 @@ export const zhTW: TranslationKeys = {
 		codebaseSearching: '⏏ 代碼庫搜尋 (嘗試 {current}/{max})',
 		codebaseSearchAttempt: '嘗試 {current}/{max}',
 		codebaseSearchComplete: '代碼庫搜尋完成',
+		codebaseIndexingEnabled: '已為此專案啟用代碼庫索引',
+		codebaseIndexingDisabled: '已為此專案禁用代碼庫索引',
 		// IDE
 		ideConnecting: '連線到 IDE...',
 		ideConnected: 'IDE 已連線',
