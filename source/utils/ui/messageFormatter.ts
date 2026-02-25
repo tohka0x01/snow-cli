@@ -22,50 +22,83 @@ function isFilePath(value: string): boolean {
 }
 
 /**
- * 纯路径截断，保留文件名
+ * 纯路径截断，从后往前保留完整的目录名
  */
 export function truncatePath(path: string, maxLen: number): string {
-	const safeMaxLen = Math.max(maxLen, 4); // 至少能显示 "...x"
+	const safeMaxLen = Math.max(maxLen, 4);
 	if (path.length <= safeMaxLen) return path;
 
 	const sep = path.includes('\\') ? '\\' : '/';
-	const lastSep = path.lastIndexOf(sep);
-	const filename = lastSep >= 0 ? path.slice(lastSep + 1) : path;
+	const parts = path.split(sep);
+	const filename = parts.pop() || '';
 
 	// 文件名本身就超长，从末尾截断
 	if (filename.length + 4 > safeMaxLen) {
 		return '...' + filename.slice(-(safeMaxLen - 3));
 	}
 
-	// 保留文件名，从目录部分的末尾保留尽可能多的内容
+	// 从后往前保留完整的目录层级
 	const prefix = '...' + sep;
-	const availableForDir = safeMaxLen - prefix.length - filename.length - 1; // -1 for sep before filename
+	const available = safeMaxLen - prefix.length - filename.length - 1; // -1 for sep before filename
 
-	if (availableForDir <= 0) {
+	if (available <= 0) {
 		return prefix + filename;
 	}
 
-	const dirPart = path.slice(0, lastSep);
-	return prefix + dirPart.slice(-availableForDir) + sep + filename;
+	// 从后往前遍历，收集能容纳的完整目录
+	const includedParts: string[] = [];
+	let used = filename.length;
+
+	for (let i = parts.length - 1; i >= 0; i--) {
+		const part = parts[i];
+		if (!part) continue;
+		const needed = part.length + 1; // +1 for separator
+
+		if (used + needed > available) {
+			break;
+		}
+
+		includedParts.unshift(part);
+		used += needed;
+	}
+
+	if (includedParts.length === 0) {
+		return prefix + filename;
+	}
+
+	return prefix + includedParts.join(sep) + sep + filename;
 }
 
 /**
  * 用 OSC 8 超链接包装文本
  */
-export function wrapWithFileLink(filePath: string, displayText: string): string {
+export function wrapWithFileLink(
+	filePath: string,
+	displayText: string,
+): string {
 	const fileUrl = `file://${filePath}`;
 	return `\x1b]8;;${fileUrl}\x07${displayText}\x1b]8;;\x07`;
 }
 
 /**
  * 智能截断路径并添加可点击链接
+ * @param filePath - 文件路径
+ * @param maxLength - 最大显示长度
+ * @param includeLink - 是否包含 OSC 8 超链接，默认为 true。在 Ink 等 React 终端渲染环境中应设为 false
  */
-export function smartTruncatePath(filePath: string, maxLength?: number): string {
+export function smartTruncatePath(
+	filePath: string,
+	maxLength?: number,
+	includeLink: boolean = true,
+): string {
 	const effectiveMaxLength = Math.max(
 		maxLength ?? getTerminalWidth() - PATH_DISPLAY_PADDING,
 		MIN_DISPLAY_LENGTH,
 	);
 	const displayText = truncatePath(filePath, effectiveMaxLength);
+	if (!includeLink) {
+		return displayText;
+	}
 	return wrapWithFileLink(filePath, displayText);
 }
 
