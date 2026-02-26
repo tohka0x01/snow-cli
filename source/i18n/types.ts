@@ -165,7 +165,11 @@ export type TranslationKeys = {
 		enableAutoCompress: string;
 		showThinking: string;
 		thinkingEnabled: string;
+		thinkingMode: string;
+		thinkingModeTokens: string;
+		thinkingModeAdaptive: string;
 		thinkingBudgetTokens: string;
+		thinkingEffort: string;
 		geminiThinkingEnabled: string;
 		geminiThinkingBudget: string;
 		responsesReasoningEnabled: string;
@@ -559,6 +563,7 @@ export type TranslationKeys = {
 		requestMethod: string;
 		showThinkingProcess: string;
 		enableThinking: string;
+		thinkingMode: string;
 		thinkingStrength: string;
 		inputNumberHint: string;
 		escCancel: string;

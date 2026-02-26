@@ -9,10 +9,10 @@ import {
 } from 'fs';
 
 export type RequestMethod = 'chat' | 'responses' | 'gemini' | 'anthropic';
-
 export interface ThinkingConfig {
-	type: 'enabled';
-	budget_tokens: number;
+	type: 'enabled' | 'adaptive';
+	budget_tokens?: number; // For 'enabled' type
+	effort?: 'low' | 'medium' | 'high' | 'max'; // For 'adaptive' type
 }
 
 export interface GeminiThinkingConfig {

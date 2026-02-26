@@ -48,7 +48,9 @@ type ConfigField =
 	| 'enableAutoCompress'
 	| 'showThinking'
 	| 'thinkingEnabled'
+	| 'thinkingMode'
 	| 'thinkingBudgetTokens'
+	| 'thinkingEffort'
 	| 'geminiThinkingEnabled'
 	| 'geminiThinkingBudget'
 	| 'responsesReasoningEnabled'
@@ -149,7 +151,13 @@ export default function ConfigScreen({
 	const [enableAutoCompress, setEnableAutoCompress] = useState(true);
 	const [showThinking, setShowThinking] = useState(true);
 	const [thinkingEnabled, setThinkingEnabled] = useState(false);
+	const [thinkingMode, setThinkingMode] = useState<'tokens' | 'adaptive'>(
+		'tokens',
+	);
 	const [thinkingBudgetTokens, setThinkingBudgetTokens] = useState(10000);
+	const [thinkingEffort, setThinkingEffort] = useState<
+		'low' | 'medium' | 'high' | 'max'
+	>('high');
 	const [geminiThinkingEnabled, setGeminiThinkingEnabled] = useState(false);
 	const [geminiThinkingBudget, setGeminiThinkingBudget] = useState(1024);
 	const [responsesReasoningEnabled, setResponsesReasoningEnabled] =
@@ -221,7 +229,13 @@ export default function ConfigScreen({
 						'anthropicBeta' as ConfigField,
 						'anthropicCacheTTL' as ConfigField,
 						'thinkingEnabled' as ConfigField,
-						'thinkingBudgetTokens' as ConfigField,
+						'thinkingMode' as ConfigField,
+						...(thinkingEnabled && thinkingMode === 'tokens'
+							? ['thinkingBudgetTokens' as ConfigField]
+							: []),
+						...(thinkingEnabled && thinkingMode === 'adaptive'
+							? ['thinkingEffort' as ConfigField]
+							: []),
 				  ]
 				: requestMethod === 'gemini'
 				? [
@@ -345,8 +359,16 @@ export default function ConfigScreen({
 		setAnthropicCacheTTL(config.anthropicCacheTTL || '5m');
 		setEnableAutoCompress(config.enableAutoCompress !== false); // Default to true
 		setShowThinking(config.showThinking !== false); // Default to true
-		setThinkingEnabled(config.thinking?.type === 'enabled' || false);
+		setThinkingEnabled(
+			config.thinking?.type === 'enabled' ||
+				config.thinking?.type === 'adaptive' ||
+				false,
+		);
+		setThinkingMode(
+			config.thinking?.type === 'adaptive' ? 'adaptive' : 'tokens',
+		);
 		setThinkingBudgetTokens(config.thinking?.budget_tokens || 10000);
+		setThinkingEffort(config.thinking?.effort || 'high');
 		setGeminiThinkingEnabled(config.geminiThinking?.enabled || false);
 		setGeminiThinkingBudget(config.geminiThinking?.budget || 1024);
 		setResponsesReasoningEnabled(config.responsesReasoning?.enabled || false);
@@ -428,6 +450,8 @@ export default function ConfigScreen({
 			return editSimilarityThreshold.toString();
 		if (currentField === 'thinkingBudgetTokens')
 			return thinkingBudgetTokens.toString();
+		if (currentField === 'thinkingMode') return thinkingMode;
+		if (currentField === 'thinkingEffort') return thinkingEffort;
 		if (currentField === 'geminiThinkingBudget')
 			return geminiThinkingBudget.toString();
 		if (currentField === 'responsesReasoningEffort')
@@ -587,7 +611,9 @@ export default function ConfigScreen({
 					enableAutoCompress,
 					showThinking,
 					thinking: thinkingEnabled
-						? {type: 'enabled' as const, budget_tokens: thinkingBudgetTokens}
+						? thinkingMode === 'adaptive'
+							? {type: 'adaptive' as const, effort: thinkingEffort}
+							: {type: 'enabled' as const, budget_tokens: thinkingBudgetTokens}
 						: undefined,
 					advancedModel,
 					basicModel,
@@ -694,10 +720,16 @@ export default function ConfigScreen({
 
 			// Save thinking configuration (always save to preserve settings)
 			if (thinkingEnabled) {
-				config.thinking = {
-					type: 'enabled',
-					budget_tokens: thinkingBudgetTokens,
-				};
+				config.thinking =
+					thinkingMode === 'adaptive'
+						? {
+								type: 'adaptive',
+								effort: thinkingEffort,
+						  }
+						: {
+								type: 'enabled',
+								budget_tokens: thinkingBudgetTokens,
+						  };
 			} else {
 				// Explicitly set to undefined to clear it when disabled
 				config.thinking = undefined;
@@ -736,7 +768,12 @@ export default function ConfigScreen({
 						enableAutoCompress,
 						showThinking,
 						thinking: thinkingEnabled
-							? {type: 'enabled' as const, budget_tokens: thinkingBudgetTokens}
+							? thinkingMode === 'adaptive'
+								? {type: 'adaptive' as const, effort: thinkingEffort}
+								: {
+										type: 'enabled' as const,
+										budget_tokens: thinkingBudgetTokens,
+								  }
 							: undefined,
 						geminiThinking: geminiThinkingEnabled
 							? {enabled: true, budget: geminiThinkingBudget}
@@ -1077,7 +1114,29 @@ export default function ConfigScreen({
 					</Box>
 				);
 
+			case 'thinkingMode':
+				return (
+					<Box key={field} flexDirection="column">
+						<Text
+							color={
+								isActive ? theme.colors.menuSelected : theme.colors.menuNormal
+							}
+						>
+							{isActive ? '❯ ' : '  '}
+							{t.configScreen.thinkingMode}
+						</Text>
+						<Box marginLeft={3}>
+							<Text color={theme.colors.menuSecondary}>
+								{thinkingMode === 'tokens'
+									? t.configScreen.thinkingModeTokens
+									: t.configScreen.thinkingModeAdaptive}
+							</Text>
+						</Box>
+					</Box>
+				);
+
 			case 'thinkingBudgetTokens':
+				if (thinkingMode !== 'tokens') return null;
 				return (
 					<Box key={field} flexDirection="column">
 						<Text
@@ -1102,6 +1161,24 @@ export default function ConfigScreen({
 								</Text>
 							</Box>
 						)}
+					</Box>
+				);
+
+			case 'thinkingEffort':
+				if (thinkingMode !== 'adaptive') return null;
+				return (
+					<Box key={field} flexDirection="column">
+						<Text
+							color={
+								isActive ? theme.colors.menuSelected : theme.colors.menuNormal
+							}
+						>
+							{isActive ? '❯ ' : '  '}
+							{t.configScreen.thinkingEffort}
+						</Text>
+						<Box marginLeft={3}>
+							<Text color={theme.colors.menuSecondary}>{thinkingEffort}</Text>
+						</Box>
 					</Box>
 				);
 
@@ -1517,6 +1594,8 @@ export default function ConfigScreen({
 				currentField === 'anthropicCacheTTL' ||
 				currentField === 'advancedModel' ||
 				currentField === 'basicModel' ||
+				currentField === 'thinkingMode' ||
+				currentField === 'thinkingEffort' ||
 				currentField === 'responsesReasoningEffort') &&
 			key.escape
 		) {
@@ -1725,6 +1804,10 @@ export default function ConfigScreen({
 					setShowThinking(!showThinking);
 				} else if (currentField === 'thinkingEnabled') {
 					setThinkingEnabled(!thinkingEnabled);
+				} else if (currentField === 'thinkingMode') {
+					setIsEditing(true);
+				} else if (currentField === 'thinkingEffort') {
+					setIsEditing(true);
 				} else if (currentField === 'geminiThinkingEnabled') {
 					setGeminiThinkingEnabled(!geminiThinkingEnabled);
 				} else if (currentField === 'responsesReasoningEnabled') {
@@ -2047,6 +2130,8 @@ export default function ConfigScreen({
 				currentField === 'customHeadersSchemeId' ||
 				currentField === 'advancedModel' ||
 				currentField === 'basicModel' ||
+				currentField === 'thinkingMode' ||
+				currentField === 'thinkingEffort' ||
 				currentField === 'responsesReasoningEffort') ? (
 				<Box flexDirection="column">
 					<Text color={theme.colors.menuSelected}>
@@ -2059,6 +2144,10 @@ export default function ConfigScreen({
 							t.configScreen.advancedModel.replace(':', '')}
 						{currentField === 'basicModel' &&
 							t.configScreen.basicModel.replace(':', '')}
+						{currentField === 'thinkingMode' &&
+							t.configScreen.thinkingMode.replace(':', '')}
+						{currentField === 'thinkingEffort' &&
+							t.configScreen.thinkingEffort.replace(':', '')}
 						{currentField === 'responsesReasoningEffort' &&
 							t.configScreen.responsesReasoningEffort.replace(':', '')}
 						{currentField === 'systemPromptId' && t.configScreen.systemPrompt}
@@ -2301,6 +2390,49 @@ export default function ConfigScreen({
 								/>
 							</Box>
 						)}
+						{currentField === 'thinkingMode' && (
+							<ScrollableSelectInput
+								items={[
+									{label: t.configScreen.thinkingModeTokens, value: 'tokens'},
+									{
+										label: t.configScreen.thinkingModeAdaptive,
+										value: 'adaptive',
+									},
+								]}
+								initialIndex={thinkingMode === 'tokens' ? 0 : 1}
+								isFocused={true}
+								onSelect={item => {
+									setThinkingMode(item.value as 'tokens' | 'adaptive');
+									setIsEditing(false);
+								}}
+							/>
+						)}
+						{currentField === 'thinkingEffort' && (
+							<ScrollableSelectInput
+								items={[
+									{label: 'low', value: 'low'},
+									{label: 'medium', value: 'medium'},
+									{label: 'high', value: 'high'},
+									{label: 'max', value: 'max'},
+								]}
+								initialIndex={
+									thinkingEffort === 'low'
+										? 0
+										: thinkingEffort === 'medium'
+										? 1
+										: thinkingEffort === 'high'
+										? 2
+										: 3
+								}
+								isFocused={true}
+								onSelect={item => {
+									setThinkingEffort(
+										item.value as 'low' | 'medium' | 'high' | 'max',
+									);
+									setIsEditing(false);
+								}}
+							/>
+						)}
 						{currentField === 'responsesReasoningEffort' && (
 							<ScrollableSelectInput
 								items={[
@@ -2355,7 +2487,7 @@ export default function ConfigScreen({
 			)}
 
 			{/* Only show navigation hints when not in Select editing mode */}
-			{!(
+			{!!!(
 				isEditing &&
 				(currentField === 'profile' ||
 					currentField === 'requestMethod' ||
@@ -2363,6 +2495,8 @@ export default function ConfigScreen({
 					currentField === 'customHeadersSchemeId' ||
 					currentField === 'advancedModel' ||
 					currentField === 'basicModel' ||
+					currentField === 'thinkingMode' ||
+					currentField === 'thinkingEffort' ||
 					currentField === 'responsesReasoningEffort')
 			) && (
 				<Box flexDirection="column" marginTop={1}>

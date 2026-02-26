@@ -690,10 +690,19 @@ export async function* createStreamingAnthropicCompletion(
 					disableThinking: options.disableThinking,
 					willEnableThinking: config.thinking && !options.disableThinking,
 				});
-			}
-			if (config.thinking && !options.disableThinking) {
-				requestBody.thinking = config.thinking;
-				requestBody.temperature = 1;
+				if (config.thinking && !options.disableThinking) {
+					if (config.thinking.type === 'adaptive') {
+						requestBody.thinking = {
+							type: 'adaptive',
+						};
+						requestBody.output_config = {
+							effort: config.thinking.effort || 'high',
+						};
+					} else {
+						requestBody.thinking = config.thinking;
+					}
+					requestBody.temperature = 1;
+				}
 			}
 
 			// Use custom headers from options if provided, otherwise get from current config (supports profile override)

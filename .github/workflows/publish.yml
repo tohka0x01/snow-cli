@@ -58,9 +58,8 @@ jobs:
 
             ### What's New
 
-            - Fix some UI display problems
-            - Optimize the display logic of the instruction panel
-            - Repair some international translations are indeed missing
+            - Add streaming idle timeout retry
+            - Add Anthropic adaptive thinking intensity scheme
 
             ### Installation
             ```bash
