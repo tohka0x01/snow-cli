@@ -461,6 +461,7 @@ export const zhTW: TranslationKeys = {
 		commands: {
 			help: '顯示快捷鍵和說明資訊',
 			clear: '清空聊天上下文和對話歷史',
+			copyLast: '複製最後一條AI回覆到剪貼簿',
 			resume: '恢復對話',
 			mcp: '顯示模型上下文協定服務和工具',
 			yolo: '切換無人值守模式(自動批准所有工具)',
@@ -489,6 +490,13 @@ export const zhTW: TranslationKeys = {
 			profiles: '開啟設定檔切換面板',
 			models: '開啟模型切換面板',
 			quit: '退出應用程式',
+		},
+		copyLastFeedback: {
+			noAssistantMessage: '未找到可複製的 AI 助手訊息。',
+			emptyAssistantMessage: '最後一條 AI 助手訊息沒有可複製的內容。',
+			copySuccess: '✓ 已複製最後一條 AI 訊息到剪貼簿',
+			copyFailedPrefix: '✗ 複製到剪貼簿失敗',
+			unknownError: '未知錯誤',
 		},
 	},
 	permissionsPanel: {

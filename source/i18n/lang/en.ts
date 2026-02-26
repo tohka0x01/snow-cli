@@ -492,6 +492,7 @@ export const en: TranslationKeys = {
 		commands: {
 			help: 'Show keyboard shortcuts and help information',
 			clear: 'Clear chat context and conversation history',
+			copyLast: 'Copy last AI message to clipboard',
 			resume: 'Resume a conversation',
 			mcp: 'Show Model Context Protocol services and tools',
 			yolo: 'Toggle unattended mode (auto-approve all tools)',
@@ -527,6 +528,14 @@ export const en: TranslationKeys = {
 				'Open Git branch management panel for switching, creating and deleting branches',
 			diff: 'Review file changes from a conversation in IDE diff view',
 			quit: 'Exit the application',
+		},
+		copyLastFeedback: {
+			noAssistantMessage: 'No AI assistant message found to copy.',
+			emptyAssistantMessage:
+				'The last AI assistant message has no content to copy.',
+			copySuccess: '✓ Last AI message copied to clipboard',
+			copyFailedPrefix: '✗ Failed to copy to clipboard',
+			unknownError: 'Unknown error',
 		},
 	},
 	permissionsPanel: {

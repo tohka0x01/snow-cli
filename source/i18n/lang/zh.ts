@@ -460,6 +460,7 @@ export const zh: TranslationKeys = {
 		commands: {
 			help: '显示快捷键和帮助信息',
 			clear: '清空聊天上下文和对话历史',
+			copyLast: '复制最后一条AI回复到剪贴板',
 			resume: '恢复对话',
 			mcp: '显示模型上下文协议服务和工具',
 			yolo: '切换无人值守模式(自动批准所有工具)',
@@ -488,6 +489,13 @@ export const zh: TranslationKeys = {
 			profiles: '打开配置文件切换面板',
 			models: '打开模型切换面板',
 			quit: '退出应用程序',
+		},
+		copyLastFeedback: {
+			noAssistantMessage: '未找到可复制的 AI 助手消息。',
+			emptyAssistantMessage: '最后一条 AI 助手消息没有可复制的内容。',
+			copySuccess: '✓ 已复制最后一条 AI 消息到剪贴板',
+			copyFailedPrefix: '✗ 复制到剪贴板失败',
+			unknownError: '未知错误',
 		},
 	},
 	permissionsPanel: {
