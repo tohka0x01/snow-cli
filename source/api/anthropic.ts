@@ -10,6 +10,10 @@ import {
 	withRetryGenerator,
 	parseJsonWithFix,
 } from '../utils/core/retryUtils.js';
+import {
+	createIdleTimeoutGuard,
+	StreamIdleTimeoutError,
+} from '../utils/core/streamGuards.js';
 import type {ChatMessage, ChatCompletionTool, UsageInfo} from './types.js';
 import {logger} from '../utils/core/logger.js';
 import {addProxyToFetchOptions} from '../utils/core/proxyUtils.js';
@@ -460,23 +464,62 @@ function convertToAnthropicMessages(
  */
 async function* parseSSEStream(
 	reader: ReadableStreamDefaultReader<Uint8Array>,
+	abortSignal?: AbortSignal,
+	idleTimeoutMs?: number,
 ): AsyncGenerator<any, void, unknown> {
 	const decoder = new TextDecoder();
 	let buffer = '';
+	let dataCount = 0; // 记录成功解析的数据块数量
+	let lastEventType = ''; // 记录最后一个事件类型
+
+	// 创建空闲超时保护器
+	const guard = createIdleTimeoutGuard({
+		reader,
+		idleTimeoutMs,
+		onTimeout: () => {
+			throw new StreamIdleTimeoutError(
+				`No data received for ${idleTimeoutMs}ms`,
+				idleTimeoutMs,
+			);
+		},
+	});
 
 	try {
 		while (true) {
+			// 用户主动中断时立即标记丢弃,避免延迟消息外泄
+			if (abortSignal?.aborted) {
+				guard.abandon();
+				return;
+			}
+
 			const {done, value} = await reader.read();
 
+			// 检查是否有超时错误需要在读取循环中抛出(确保被正确的 try/catch 捕获)
+			const timeoutError = guard.getTimeoutError();
+			if (timeoutError) {
+				throw timeoutError;
+			}
+
+			// 检查是否已被丢弃(竞态条件防护)
+			if (guard.isAbandoned()) {
+				continue;
+			}
+
 			if (done) {
-				// ✅ 关键修复：检查buffer是否有残留数据
+				// 检查buffer是否有残留数据
 				if (buffer.trim()) {
-					// 连接异常中断，抛出明确错误
+					// 连接异常中断,抛出明确错误,并包含断点信息
+					const errorContext = {
+						dataCount,
+						lastEventType,
+						bufferLength: buffer.length,
+						bufferPreview: buffer.substring(0, 200),
+					};
+
+					const errorMessage = `[API_ERROR] [RETRIABLE] Anthropic stream terminated unexpectedly with incomplete data`;
+					logger.error(errorMessage, errorContext);
 					throw new Error(
-						`Stream terminated unexpectedly with incomplete data: ${buffer.substring(
-							0,
-							100,
-						)}...`,
+						`${errorMessage}. Context: ${JSON.stringify(errorContext)}`,
 					);
 				}
 				break; // 正常结束
@@ -494,13 +537,16 @@ async function* parseSSEStream(
 					return;
 				}
 
-				// Handle both "event: " and "event:" formats
+				// 处理 "event: " 和 "event:" 两种格式
 				if (trimmed.startsWith('event:')) {
-					// Event type, will be followed by data
+					// 记录事件类型用于断点恢复
+					lastEventType = trimmed.startsWith('event: ')
+						? trimmed.slice(7)
+						: trimmed.slice(6);
 					continue;
 				}
 
-				// Handle both "data: " and "data:" formats
+				// 处理 "data: " 和 "data:" 两种格式
 				if (trimmed.startsWith('data:')) {
 					const data = trimmed.startsWith('data: ')
 						? trimmed.slice(6)
@@ -512,18 +558,46 @@ async function* parseSSEStream(
 					});
 
 					if (parseResult.success) {
-						yield parseResult.data;
+						const event = parseResult.data;
+						const hasBusinessDelta =
+							(event?.type === 'content_block_start' &&
+								event?.content_block?.type === 'tool_use') ||
+							(event?.type === 'content_block_delta' &&
+								((event?.delta?.type === 'text_delta' && event?.delta?.text) ||
+									(event?.delta?.type === 'thinking_delta' &&
+										event?.delta?.thinking) ||
+									(event?.delta?.type === 'input_json_delta' &&
+										event?.delta?.partial_json)));
+						if (hasBusinessDelta) {
+							guard.touch();
+						}
+						dataCount++;
+						// yield前检查是否已被丢弃
+						if (!guard.isAbandoned()) {
+							yield event;
+						}
 					}
 				}
 			}
 		}
 	} catch (error) {
 		const {logger} = await import('../utils/core/logger.js');
-		logger.error('SSE stream parsing error:', {
+
+		// 增强错误日志,包含断点状态
+		const errorContext = {
 			error: error instanceof Error ? error.message : 'Unknown error',
-			remainingBuffer: buffer.substring(0, 200),
-		});
+			dataCount,
+			lastEventType,
+			bufferLength: buffer.length,
+			bufferPreview: buffer.substring(0, 200),
+		};
+		logger.error(
+			'[API_ERROR] [RETRIABLE] Anthropic SSE stream parsing error with checkpoint context:',
+			errorContext,
+		);
 		throw error;
+	} finally {
+		guard.dispose();
 	}
 }
 export async function* createStreamingAnthropicCompletion(
@@ -710,11 +784,14 @@ export async function* createStreamingAnthropicCompletion(
 			let blockIndexToId: Map<number, string> = new Map();
 			let blockIndexToType: Map<number, string> = new Map(); // Track block types (text, thinking, tool_use)
 			let completedToolBlocks = new Set<string>(); // Track which tool blocks have finished streaming
+			const idleTimeoutMs = (config.streamIdleTimeoutSec ?? 180) * 1000;
 
-			for await (const event of parseSSEStream(response.body.getReader())) {
-				if (abortSignal?.aborted) {
-					return;
-				}
+			for await (const event of parseSSEStream(
+				response.body.getReader(),
+				abortSignal,
+				idleTimeoutMs,
+			)) {
+				// abort 由 parseSSEStream 统一处理,避免重复分支导致行为漂移
 				if (event.type === 'content_block_start') {
 					const block = event.content_block;
 					const blockIndex = event.index;

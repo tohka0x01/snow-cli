@@ -188,6 +188,7 @@ export const en: TranslationKeys = {
 		basicModel: 'Basic Model(Type to search):',
 		maxContextTokens: 'Max Context Tokens:',
 		maxTokens: 'Max Tokens:',
+		streamIdleTimeoutSec: 'Stream Idle Timeout(sec):',
 		toolResultTokenLimit: 'Tool Result Token Limit:',
 		editSimilarityThreshold:
 			'Edit Similarity Threshold(0-1, change with caution):',

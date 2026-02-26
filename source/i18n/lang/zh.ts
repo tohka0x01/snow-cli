@@ -173,6 +173,7 @@ export const zh: TranslationKeys = {
 		basicModel: '基础模型(键入可搜索):',
 		maxContextTokens: '最大上下文令牌:',
 		maxTokens: '最大回复令牌数:',
+		streamIdleTimeoutSec: '流式空闲超时(秒):',
 		toolResultTokenLimit: '工具返回Token限制:',
 		editSimilarityThreshold: '文件编辑相似度阈值(0-1, 非必要不改):',
 		notSet: '未设置',
