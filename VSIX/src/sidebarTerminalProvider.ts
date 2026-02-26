@@ -131,8 +131,8 @@ export class SidebarTerminalProvider implements vscode.WebviewViewProvider {
 			reason === 'manual'
 				? 'manualRestart'
 				: reason === 'viewRecreate'
-					? 'viewRecreate'
-					: 'configChange';
+				? 'viewRecreate'
+				: 'configChange';
 		this.runLifecycleAction(trigger);
 	}
 
@@ -279,7 +279,10 @@ export class SidebarTerminalProvider implements vscode.WebviewViewProvider {
 				onData: (data: string) => {
 					this.view?.webview.postMessage({type: 'output', data});
 				},
-				onExit: (code: number, context?: {suppressed?: boolean; reason?: string}) => {
+				onExit: (
+					code: number,
+					context?: {suppressed?: boolean; reason?: string},
+				) => {
 					if (context?.suppressed || this.suppressNextExitBanner) {
 						this.suppressNextExitBanner = false;
 						return;
@@ -383,7 +386,8 @@ export class SidebarTerminalProvider implements vscode.WebviewViewProvider {
 			policy,
 			focus: base.focus || incoming.focus,
 			resetFrontend: base.resetFrontend || incoming.resetFrontend,
-			suppressExitBanner: base.suppressExitBanner || incoming.suppressExitBanner,
+			suppressExitBanner:
+				base.suppressExitBanner || incoming.suppressExitBanner,
 			restartReason,
 		};
 	}
@@ -564,10 +568,169 @@ export class SidebarTerminalProvider implements vscode.WebviewViewProvider {
       box-sizing: border-box;
       border-top: 1px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.12));
     }
+    /* File Picker Modal Styles */
+    #file-picker-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+    }
+    #file-picker-modal.active {
+      display: flex;
+    }
+    .file-picker-content {
+      background-color: #1e1e1e;
+      border: 1px solid #454545;
+      border-radius: 6px;
+      width: 500px;
+      max-width: 90%;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    .file-picker-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #454545;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .file-picker-title {
+      color: #cccccc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .file-picker-close {
+      background: none;
+      border: none;
+      color: #858585;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 0;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+    }
+    .file-picker-close:hover {
+      background-color: #2d2d2d;
+      color: #cccccc;
+    }
+    .file-picker-body {
+      padding: 20px;
+    }
+    .file-picker-dropzone {
+      border: 2px dashed #454545;
+      border-radius: 6px;
+      padding: 40px 20px;
+      text-align: center;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .file-picker-dropzone:hover,
+    .file-picker-dropzone.dragover {
+      border-color: #007acc;
+      background-color: rgba(0, 122, 204, 0.1);
+    }
+    .file-picker-dropzone-icon {
+      font-size: 32px;
+      color: #858585;
+      margin-bottom: 12px;
+    }
+    .file-picker-dropzone-text {
+      color: #cccccc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .file-picker-dropzone-hint {
+      color: #858585;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 12px;
+    }
+    .file-picker-input-wrapper {
+      margin-top: 16px;
+    }
+    .file-picker-input {
+      width: 100%;
+      background-color: #252526;
+      border: 1px solid #454545;
+      border-radius: 3px;
+      padding: 8px 12px;
+      color: #cccccc;
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      font-size: 13px;
+      outline: none;
+    }
+    .file-picker-input:focus {
+      border-color: #007acc;
+    }
+    .file-picker-footer {
+      padding: 12px 20px;
+      border-top: 1px solid #454545;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .file-picker-btn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 3px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+    .file-picker-btn-secondary {
+      background-color: #252526;
+      color: #cccccc;
+    }
+    .file-picker-btn-secondary:hover {
+      background-color: #2d2d2d;
+    }
+    .file-picker-btn-primary {
+      background-color: #0e639c;
+      color: #ffffff;
+    }
+    .file-picker-btn-primary:hover {
+      background-color: #1177bb;
+    }
   </style>
 </head>
 <body>
-    <div id="terminal-container"></div>
+  <div id="terminal-container"></div>
+  
+  <!-- File Picker Modal -->
+  <div id="file-picker-modal">
+    <div class="file-picker-content">
+      <div class="file-picker-header">
+        <span class="file-picker-title">Select File</span>
+        <button class="file-picker-close" id="file-picker-close">×</button>
+      </div>
+      <div class="file-picker-body">
+        <div class="file-picker-dropzone" id="file-picker-dropzone">
+          <div class="file-picker-dropzone-icon">📁</div>
+          <div class="file-picker-dropzone-text">Drop file here or click to browse</div>
+          <div class="file-picker-dropzone-hint">Supports drag & drop from Finder / Explorer</div>
+        </div>
+        <div class="file-picker-input-wrapper">
+          <input type="text" class="file-picker-input" id="file-picker-input" placeholder="Or type/paste file path here...">
+        </div>
+      </div>
+      <div class="file-picker-footer">
+        <button class="file-picker-btn file-picker-btn-secondary" id="file-picker-cancel">Cancel</button>
+        <button class="file-picker-btn file-picker-btn-primary" id="file-picker-confirm">Insert Path</button>
+      </div>
+    </div>
+  </div>
   
   <script src="${xtermJsUri}"></script>
   <script src="${xtermFitUri}"></script>
@@ -976,8 +1139,188 @@ export class SidebarTerminalProvider implements vscode.WebviewViewProvider {
               vscode.postMessage({ type: 'input', data: result });
             }
             break;
+          case 'showFilePicker':
+            showFilePickerModal();
+            break;
         }
       });
+
+      // File Picker Modal Functions
+      const filePickerModal = document.getElementById('file-picker-modal');
+      const filePickerDropzone = document.getElementById('file-picker-dropzone');
+      const filePickerInput = document.getElementById('file-picker-input');
+      const filePickerClose = document.getElementById('file-picker-close');
+      const filePickerCancel = document.getElementById('file-picker-cancel');
+      const filePickerConfirm = document.getElementById('file-picker-confirm');
+
+      function showFilePickerModal() {
+        if (filePickerModal) {
+          filePickerModal.classList.add('active');
+          filePickerInput.value = '';
+          filePickerInput.focus();
+        }
+      }
+
+      function hideFilePickerModal() {
+        if (filePickerModal) {
+          filePickerModal.classList.remove('active');
+        }
+      }
+
+      function confirmFilePicker() {
+        const path = filePickerInput.value.trim();
+        if (path) {
+          const result = quoteIfSpaces(path);
+          vscode.postMessage({ type: 'input', data: result });
+          term.focus();
+        }
+        hideFilePickerModal();
+      }
+
+      // Modal event handlers
+      if (filePickerClose) {
+        filePickerClose.addEventListener('click', hideFilePickerModal);
+      }
+
+      if (filePickerCancel) {
+        filePickerCancel.addEventListener('click', hideFilePickerModal);
+      }
+
+      if (filePickerConfirm) {
+        filePickerConfirm.addEventListener('click', confirmFilePicker);
+      }
+
+      if (filePickerInput) {
+        filePickerInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            confirmFilePicker();
+          } else if (e.key === 'Escape') {
+            hideFilePickerModal();
+          }
+        });
+      }
+
+      // Drag and drop handlers for the dropzone
+      if (filePickerDropzone) {
+        filePickerDropzone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          filePickerDropzone.classList.add('dragover');
+        });
+
+        filePickerDropzone.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          filePickerDropzone.classList.remove('dragover');
+        });
+
+        filePickerDropzone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          filePickerDropzone.classList.remove('dragover');
+
+          const paths = [];
+          const types = e.dataTransfer.types || [];
+
+          // Try to get paths from dataTransfer
+          for (let t = 0; t < types.length; t++) {
+            if (paths.length > 0) break;
+            const mimeType = types[t];
+            if (mimeType === 'Files') continue;
+
+            let data = '';
+            try { data = e.dataTransfer.getData(mimeType); } catch(ex) { continue; }
+            if (!data) continue;
+
+            if (mimeType.indexOf('uri') >= 0 || mimeType.indexOf('url') >= 0) {
+              const lines = data.split(/\\r?\\n/);
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line || line.charAt(0) === '#') continue;
+                const fp = uriToPath(line);
+                if (fp) { paths.push(fp); }
+                else if (looksLikePath(line)) { paths.push(line); }
+              }
+            }
+            else if (mimeType.indexOf('code') >= 0 || mimeType.indexOf('resource') >= 0) {
+              try {
+                const json = JSON.parse(data);
+                const items = Array.isArray(json) ? json : [json];
+                for (let k = 0; k < items.length; k++) {
+                  const item = items[k];
+                  let raw = (item && (item.uri || item.fsPath || item.path || item.externalUri)) || '';
+                  if (typeof raw === 'object') raw = raw.fsPath || raw.path || '';
+                  if (raw) {
+                    const fp = uriToPath(raw);
+                    paths.push(fp || raw);
+                  }
+                }
+              } catch(ex) {}
+            }
+            else if (mimeType === 'text/plain') {
+              const lines = data.split(/\\r?\\n/);
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                if (line.startsWith('file://')) {
+                  const fp = uriToPath(line);
+                  if (fp) paths.push(fp);
+                } else if (looksLikePath(line)) {
+                  paths.push(line);
+                }
+              }
+            }
+          }
+
+          // Try File objects
+          if (paths.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            for (let j = 0; j < e.dataTransfer.files.length; j++) {
+              const f = e.dataTransfer.files[j];
+              if (f.path) paths.push(f.path);
+              else if (f.name) paths.push(f.name);
+            }
+          }
+
+          if (paths.length > 0) {
+            filePickerInput.value = paths.map(quoteIfSpaces).join(' ');
+            confirmFilePicker();
+          }
+        });
+
+        // Click to open file dialog using hidden input
+        filePickerDropzone.addEventListener('click', () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.style.display = 'none';
+          input.onchange = (e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+              const paths = [];
+              for (let i = 0; i < files.length; i++) {
+                const f = files[i];
+                if (f.path) paths.push(f.path);
+                else if (f.name) paths.push(f.name);
+              }
+              if (paths.length > 0) {
+                filePickerInput.value = paths.map(quoteIfSpaces).join(' ');
+                confirmFilePicker();
+              }
+            }
+            document.body.removeChild(input);
+          };
+          document.body.appendChild(input);
+          input.click();
+        });
+      }
+
+      // Close modal when clicking outside
+      if (filePickerModal) {
+        filePickerModal.addEventListener('click', (e) => {
+          if (e.target === filePickerModal) {
+            hideFilePickerModal();
+          }
+        });
+      }
 
       vscode.postMessage({ type: 'ready' });
 
@@ -996,6 +1339,13 @@ export class SidebarTerminalProvider implements vscode.WebviewViewProvider {
 	public sendFilePaths(paths: string[]): void {
 		const pathStr = paths.map(p => (p.includes(' ') ? `"${p}"` : p)).join(' ');
 		this.ptyManager.write(pathStr);
+	}
+
+	/**
+	 * Show file picker modal in the webview
+	 */
+	public showFilePicker(): void {
+		this.view?.webview.postMessage({type: 'showFilePicker'});
 	}
 
 	public dispose(): void {

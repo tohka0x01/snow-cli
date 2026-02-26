@@ -35,8 +35,7 @@ function getWorkspaceFolderForActiveEditor(): string | undefined {
 		? vscode.workspace.getWorkspaceFolder(editor.document.uri)
 		: undefined;
 	return (
-		folder?.uri.fsPath ??
-		vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+		folder?.uri.fsPath ?? vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
 	);
 }
 
@@ -124,6 +123,18 @@ export function activate(context: vscode.ExtensionContext) {
 				'workbench.action.openSettings',
 				'@ext:mufasa.snow-cli',
 			);
+		}),
+		vscode.commands.registerCommand('snow-cli.openFilePicker', async () => {
+			const uris = await vscode.window.showOpenDialog({
+				canSelectFiles: true,
+				canSelectFolders: true,
+				canSelectMany: true,
+				openLabel: 'Insert Path',
+			});
+			if (uris && uris.length > 0) {
+				const paths = uris.map(uri => uri.fsPath);
+				sidebarProvider?.sendFilePaths(paths);
+			}
 		}),
 		vscode.commands.registerCommand('snow-cli.focusSidebar', async () => {
 			const mode = getConfig<string>('terminalMode', 'split');

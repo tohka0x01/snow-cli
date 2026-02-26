@@ -58,7 +58,9 @@ jobs:
 
             ### What's New
 
-            - Optimize some UI display effects
+            - Fix some UI display problems
+            - Optimize the display logic of the instruction panel
+            - Repair some international translations are indeed missing
 
             ### Installation
             ```bash
