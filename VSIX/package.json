@@ -128,18 +128,35 @@
 				"icon": "$(debug-rerun)"
 			},
 			{
+				"command": "snow-cli.addFolderPath",
+				"title": "Add Folder Path",
+				"icon": "$(file-symlink-directory)"
+			},
+			{
+				"command": "snow-cli.addFilePath",
+				"title": "Add File Path",
+				"icon": "$(file-symlink-file)"
+			},
+			{
 				"command": "snow-cli.openSnowSettings",
 				"title": "Snow CLI Settings",
 				"icon": "$(settings-gear)"
 			},
 			{
-				"command": "snow-cli.openFilePicker",
-				"title": "Insert File Path",
-				"icon": "$(file-directory)"
-			},
-			{
 				"command": "snow-cli.focusSidebar",
 				"title": "Focus Snow CLI Sidebar"
+			},
+			{
+				"command": "snow-cli.sendFilePaths",
+				"title": "Send to Snow CLI",
+				"icon": "$(file-symlink-file)"
+			}
+		],
+		"submenus": [
+			{
+				"id": "snow-cli.insertPathActions",
+				"label": "Insert Path",
+				"icon": "$(attach)"
 			}
 		],
 		"keybindings": [
@@ -168,9 +185,32 @@
 					"group": "navigation@2"
 				},
 				{
-					"command": "snow-cli.openFilePicker",
+					"submenu": "snow-cli.insertPathActions",
 					"when": "view == snowCliTerminal && snow-cli.sidebarMode",
 					"group": "navigation@3"
+				}
+			],
+			"snow-cli.insertPathActions": [
+				{
+					"command": "snow-cli.addFolderPath",
+					"group": "navigation@1"
+				},
+				{
+					"command": "snow-cli.addFilePath",
+					"group": "navigation@2"
+				}
+			],
+			"explorer/context": [
+				{
+					"command": "snow-cli.sendFilePaths",
+					"group": "snow@1"
+				}
+			],
+			"editor/title/context": [
+				{
+					"command": "snow-cli.sendFilePaths",
+					"when": "resourceScheme == file || resourceScheme == vscode-remote",
+					"group": "snow@1"
 				}
 			]
 		}
