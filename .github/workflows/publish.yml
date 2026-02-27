@@ -58,9 +58,7 @@ jobs:
 
             ### What's New
 
-            - Add the /copy-last command to copy the last Assistant response to the clipboard
-            - Optimize some UI display effects
-            - Enhance the compatibility of Usage information acquisition
+            - Add Anthropic request signature parameter padding strategy
 
             ### Installation
             ```bash

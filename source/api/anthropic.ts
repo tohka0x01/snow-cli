@@ -338,8 +338,11 @@ function convertToAnthropicMessages(
 			// When thinking is enabled, thinking block must come first
 			// Skip thinking block when disableThinking is true
 			if (msg.thinking && !disableThinking) {
-				// Use the complete thinking block object (includes signature)
-				content.push(msg.thinking);
+				// Ensure signature is always present (required by Anthropic API)
+				content.push({
+					...msg.thinking,
+					signature: msg.thinking.signature || '',
+				});
 			}
 
 			if (msg.content) {
@@ -371,8 +374,11 @@ function convertToAnthropicMessages(
 			if (msg.role === 'assistant' && msg.thinking && !disableThinking) {
 				const content: any[] = [];
 
-				// Thinking block must come first - use complete block object (includes signature)
-				content.push(msg.thinking);
+				// Thinking block must come first - ensure signature is always present
+				content.push({
+					...msg.thinking,
+					signature: msg.thinking.signature || '',
+				});
 
 				// Then text content
 				if (msg.content) {
@@ -1019,7 +1025,7 @@ export async function* createStreamingAnthropicCompletion(
 				? {
 						type: 'thinking' as const,
 						thinking: thinkingTextBuffer,
-						signature: thinkingSignature || undefined,
+						signature: thinkingSignature || '',
 				  }
 				: undefined;
 
