@@ -1548,6 +1548,11 @@ export const en: TranslationKeys = {
 		title: 'Diff Review',
 		noSnapshots: 'No file changes found in this session',
 		navigationHint: '↑↓ navigate • Tab view files • Enter open all • ESC close',
+		filesSuffix: '{count} files',
+		filesViewNavigationHint:
+			'↑↓ navigate • Tab back • Enter open all • ESC close',
+		moreAbove: '↑ {count} more above',
+		moreBelow: '↓ {count} more below',
 	},
 	sessionListPanel: {
 		title: 'Resume',

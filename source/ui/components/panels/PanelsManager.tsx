@@ -28,7 +28,6 @@ import type {RoleSubagentLocation} from '../../../utils/commands/roleSubagent.js
 const MCPInfoPanel = lazy(() => import('./MCPInfoPanel.js'));
 const SessionListPanel = lazy(() => import('./SessionListPanel.js'));
 const UsagePanel = lazy(() => import('./UsagePanel.js'));
-const DiffReviewPanel = lazy(() => import('./DiffReviewPanel.js'));
 
 type PanelsManagerProps = {
 	terminalWidth: number;
@@ -47,17 +46,9 @@ type PanelsManagerProps = {
 	showRoleSubagentList: boolean;
 	showWorkingDirPanel: boolean;
 	showBranchPanel: boolean;
-	showDiffReviewPanel: boolean;
 	showConnectionPanel: boolean;
 	showTodoListPanel: boolean;
 	connectionPanelApiUrl?: string;
-	diffReviewMessages: Array<{
-		role: string;
-		content: string;
-		images?: Array<{type: 'image'; data: string; mimeType: string}>;
-		subAgentDirected?: unknown;
-	}>;
-	diffReviewSnapshotFileCount: Map<number, number>;
 	setShowSessionPanel: (show: boolean) => void;
 	setShowMcpPanel: (show: boolean) => void;
 	setShowCustomCommandConfig: (show: boolean) => void;
@@ -70,7 +61,6 @@ type PanelsManagerProps = {
 	setShowRoleSubagentList: (show: boolean) => void;
 	setShowWorkingDirPanel: (show: boolean) => void;
 	setShowBranchPanel: (show: boolean) => void;
-	setShowDiffReviewPanel: (show: boolean) => void;
 	setShowConnectionPanel: (show: boolean) => void;
 	setShowTodoListPanel: (show: boolean) => void;
 	handleSessionPanelSelect: (sessionId: string) => Promise<void>;
@@ -117,12 +107,9 @@ export default function PanelsManager({
 	showRoleSubagentList,
 	showWorkingDirPanel,
 	showBranchPanel,
-	showDiffReviewPanel,
 	showConnectionPanel,
 	showTodoListPanel,
 	connectionPanelApiUrl,
-	diffReviewMessages,
-	diffReviewSnapshotFileCount,
 	setShowSessionPanel,
 	setShowMcpPanel,
 	setShowCustomCommandConfig,
@@ -135,7 +122,6 @@ export default function PanelsManager({
 	setShowRoleSubagentList,
 	setShowWorkingDirPanel,
 	setShowBranchPanel,
-	setShowDiffReviewPanel,
 	setShowConnectionPanel,
 	setShowTodoListPanel,
 	handleSessionPanelSelect,
@@ -310,19 +296,6 @@ export default function PanelsManager({
 			{showBranchPanel && (
 				<Box paddingX={1} flexDirection="column" width={terminalWidth}>
 					<BranchPanel onClose={() => setShowBranchPanel(false)} />
-				</Box>
-			)}
-
-			{/* Show diff review panel if active */}
-			{showDiffReviewPanel && (
-				<Box paddingX={1} width={terminalWidth}>
-					<Suspense fallback={loadingFallback}>
-						<DiffReviewPanel
-							messages={diffReviewMessages}
-							snapshotFileCount={diffReviewSnapshotFileCount}
-							onClose={() => setShowDiffReviewPanel(false)}
-						/>
-					</Suspense>
 				</Box>
 			)}
 

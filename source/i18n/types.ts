@@ -1450,6 +1450,10 @@ export type TranslationKeys = {
 		title: string;
 		noSnapshots: string;
 		navigationHint: string;
+		filesSuffix: string;
+		filesViewNavigationHint: string;
+		moreAbove: string;
+		moreBelow: string;
 	};
 	sessionListPanel: {
 		title: string;

@@ -386,7 +386,6 @@ export default function ChatScreen({
 		panelState.showRoleSubagentList ||
 		panelState.showWorkingDirPanel ||
 		panelState.showBranchPanel ||
-		panelState.showDiffReviewPanel ||
 		panelState.showConnectionPanel ||
 		panelState.showNewPromptPanel ||
 		panelState.showTodoListPanel ||
@@ -504,7 +503,6 @@ export default function ChatScreen({
 				terminalWidth={terminalWidth}
 				workingDirectory={workingDirectory}
 				panelState={panelState}
-				messages={messages}
 				snapshotState={snapshotState}
 				handleSessionPanelSelect={handleSessionPanelSelect}
 				showPermissionsPanel={showPermissionsPanel}
@@ -534,6 +532,10 @@ export default function ChatScreen({
 					showReviewCommitPanel={panelState.showReviewCommitPanel}
 					setShowReviewCommitPanel={panelState.setShowReviewCommitPanel}
 					onReviewCommitConfirm={handleReviewCommitConfirm}
+					showDiffReviewPanel={panelState.showDiffReviewPanel}
+					setShowDiffReviewPanel={panelState.setShowDiffReviewPanel}
+					diffReviewMessages={messages}
+					diffReviewSnapshotFileCount={snapshotState.snapshotFileCount}
 					showIdeSelectPanel={panelState.showIdeSelectPanel}
 					setShowIdeSelectPanel={panelState.setShowIdeSelectPanel}
 					onIdeConnectionChange={(status, message) => {

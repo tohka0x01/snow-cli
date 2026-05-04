@@ -18,6 +18,7 @@ const ReviewCommitPanel = lazy(() => import('../panels/ReviewCommitPanel.js'));
 import type {ReviewCommitSelection} from '../panels/ReviewCommitPanel.js';
 import {IdeSelectPanel} from '../panels/IdeSelectPanel.js';
 const BtwPanel = lazy(() => import('../panels/BtwPanel.js'));
+const DiffReviewPanel = lazy(() => import('../panels/DiffReviewPanel.js'));
 
 type ChatFooterProps = {
 	onSubmit: (
@@ -47,6 +48,17 @@ type ChatFooterProps = {
 		selection: ReviewCommitSelection[],
 		notes: string,
 	) => void | Promise<void>;
+
+	// Diff review panel props
+	showDiffReviewPanel: boolean;
+	setShowDiffReviewPanel: React.Dispatch<React.SetStateAction<boolean>>;
+	diffReviewMessages: Array<{
+		role: string;
+		content: string;
+		images?: Array<{type: 'image'; data: string; mimeType: string}>;
+		subAgentDirected?: unknown;
+	}>;
+	diffReviewSnapshotFileCount: Map<number, number>;
 
 	disabled: boolean;
 	isStopping: boolean;
@@ -255,131 +267,137 @@ const ChatFooter = React.memo(function ChatFooter(props: ChatFooterProps) {
 	// ChatScreen 的 shouldShowFooter 侧通用逻辑覆盖不到，需要在此清空 draft，
 	// 避免面板关闭后 ChatInput 重新挂载时把旧文本恢复进输入框。
 	useEffect(() => {
-		if (props.showReviewCommitPanel || props.showIdeSelectPanel) {
+		if (
+			props.showReviewCommitPanel ||
+			props.showIdeSelectPanel ||
+			props.showDiffReviewPanel
+		) {
 			props.onDraftChange(null);
 		}
-	}, [props.showReviewCommitPanel, props.showIdeSelectPanel]);
+	}, [props.showReviewCommitPanel, props.showIdeSelectPanel, props.showDiffReviewPanel]);
 
 	return (
 		<>
-			{!props.showReviewCommitPanel && !props.showIdeSelectPanel && (
-				<>
-					<LoadingIndicator
-						isStreaming={props.isStreaming}
-						isStopping={props.isStopping}
-						isSaving={props.isSaving}
-						hasPendingToolConfirmation={props.hasPendingToolConfirmation}
-						hasPendingUserQuestion={props.hasPendingUserQuestion}
-						hasBlockingOverlay={props.hasBlockingOverlay}
-						terminalWidth={props.terminalWidth}
-						animationFrame={props.animationFrame}
-						retryStatus={props.retryStatus}
-						codebaseSearchStatus={props.codebaseSearchStatus}
-						isReasoning={props.isReasoning}
-						streamTokenCount={props.streamTokenCount}
-						elapsedSeconds={props.elapsedSeconds}
-						currentModel={props.currentModel}
-						teamMode={props.teamMode}
-					/>
-
-					{props.btwPrompt ? (
-						<Suspense
-							fallback={
-								<Box>
-									<Text>
-										<Spinner type="dots" /> Loading...
-									</Text>
-								</Box>
-							}
-						>
-							<BtwPanel prompt={props.btwPrompt} onClose={props.onBtwClose} />
-						</Suspense>
-					) : (
-						<ChatInput
-							onSubmit={props.onSubmit}
-							onCommand={props.onCommand}
-							placeholder={t.chatScreen.inputPlaceholder}
-							disabled={props.disabled}
-							disableKeyboardNavigation={props.showBackgroundPanel}
-							isProcessing={props.isProcessing}
-							chatHistory={props.chatHistory}
-							onHistorySelect={props.handleHistorySelect}
-							yoloMode={props.yoloMode}
-							setYoloMode={props.setYoloMode}
-							planMode={props.planMode}
-							setPlanMode={props.setPlanMode}
-							vulnerabilityHuntingMode={props.vulnerabilityHuntingMode}
-							setVulnerabilityHuntingMode={props.setVulnerabilityHuntingMode}
-							teamMode={props.teamMode}
-							setTeamMode={props.setTeamMode}
-							contextUsage={props.contextUsage}
-							initialContent={props.initialContent}
-							draftContent={props.draftContent}
-							onDraftChange={props.onDraftChange}
-							onContextPercentageChange={props.onContextPercentageChange}
-							onInitialContentConsumed={props.onInitialContentConsumed}
-							showProfilePicker={props.showProfilePicker}
-							setShowProfilePicker={props.setShowProfilePicker}
-							profileSelectedIndex={props.profileSelectedIndex}
-							setProfileSelectedIndex={props.setProfileSelectedIndex}
-							getFilteredProfiles={props.getFilteredProfiles}
-							handleProfileSelect={props.handleProfileSelect}
-							handleProfileEdit={props.handleProfileEdit}
-							profileSearchQuery={props.profileSearchQuery}
-							setProfileSearchQuery={props.setProfileSearchQuery}
-							onSwitchProfile={props.onSwitchProfile}
-							onCopyInputSuccess={() => {
-								setCopyStatusMessage({
-									text: `✔ ${t.chatScreen.inputCopySuccess}`,
-									timestamp: Date.now(),
-								});
-							}}
-							onCopyInputError={errorMessage => {
-								setCopyStatusMessage({
-									text: `✖ ${t.chatScreen.inputCopyFailedPrefix}: ${errorMessage}`,
-									isError: true,
-									timestamp: Date.now(),
-								});
-							}}
-						/>
-					)}
-
-					{showTodos && todos.length > 0 && (
-						<Box marginTop={1}>
-							<TodoTree todos={todos} />
-						</Box>
-					)}
-
-					<StatusLine
-						yoloMode={props.yoloMode}
-						planMode={props.planMode}
-						vulnerabilityHuntingMode={props.vulnerabilityHuntingMode}
-						toolSearchDisabled={props.toolSearchDisabled}
-						hybridCompressEnabled={props.hybridCompressEnabled}
-						teamMode={props.teamMode}
-						vscodeConnectionStatus={props.vscodeConnectionStatus}
-						editorContext={props.editorContext}
-						connectionStatus={connectionStatus}
-						connectionInstanceName={connectionInstanceName}
-						contextUsage={props.contextUsage}
-						codebaseIndexing={props.codebaseIndexing}
-						codebaseProgress={props.codebaseProgress}
-						watcherEnabled={props.watcherEnabled}
-						fileUpdateNotification={props.fileUpdateNotification}
-						copyStatusMessage={copyStatusMessage}
-						currentProfileName={props.currentProfileName}
-						compressBlockToast={props.compressBlockToast}
-					/>
-
-					{props.showBackgroundPanel && (
-						<BackgroundProcessPanel
-							processes={props.backgroundProcesses}
-							selectedIndex={props.selectedProcessIndex}
+			{!props.showReviewCommitPanel &&
+				!props.showIdeSelectPanel &&
+				!props.showDiffReviewPanel && (
+					<>
+						<LoadingIndicator
+							isStreaming={props.isStreaming}
+							isStopping={props.isStopping}
+							isSaving={props.isSaving}
+							hasPendingToolConfirmation={props.hasPendingToolConfirmation}
+							hasPendingUserQuestion={props.hasPendingUserQuestion}
+							hasBlockingOverlay={props.hasBlockingOverlay}
 							terminalWidth={props.terminalWidth}
+							animationFrame={props.animationFrame}
+							retryStatus={props.retryStatus}
+							codebaseSearchStatus={props.codebaseSearchStatus}
+							isReasoning={props.isReasoning}
+							streamTokenCount={props.streamTokenCount}
+							elapsedSeconds={props.elapsedSeconds}
+							currentModel={props.currentModel}
+							teamMode={props.teamMode}
 						/>
-					)}
-				</>
-			)}
+
+						{props.btwPrompt ? (
+							<Suspense
+								fallback={
+									<Box>
+										<Text>
+											<Spinner type="dots" /> Loading...
+										</Text>
+									</Box>
+								}
+							>
+								<BtwPanel prompt={props.btwPrompt} onClose={props.onBtwClose} />
+							</Suspense>
+						) : (
+							<ChatInput
+								onSubmit={props.onSubmit}
+								onCommand={props.onCommand}
+								placeholder={t.chatScreen.inputPlaceholder}
+								disabled={props.disabled}
+								disableKeyboardNavigation={props.showBackgroundPanel}
+								isProcessing={props.isProcessing}
+								chatHistory={props.chatHistory}
+								onHistorySelect={props.handleHistorySelect}
+								yoloMode={props.yoloMode}
+								setYoloMode={props.setYoloMode}
+								planMode={props.planMode}
+								setPlanMode={props.setPlanMode}
+								vulnerabilityHuntingMode={props.vulnerabilityHuntingMode}
+								setVulnerabilityHuntingMode={props.setVulnerabilityHuntingMode}
+								teamMode={props.teamMode}
+								setTeamMode={props.setTeamMode}
+								contextUsage={props.contextUsage}
+								initialContent={props.initialContent}
+								draftContent={props.draftContent}
+								onDraftChange={props.onDraftChange}
+								onContextPercentageChange={props.onContextPercentageChange}
+								onInitialContentConsumed={props.onInitialContentConsumed}
+								showProfilePicker={props.showProfilePicker}
+								setShowProfilePicker={props.setShowProfilePicker}
+								profileSelectedIndex={props.profileSelectedIndex}
+								setProfileSelectedIndex={props.setProfileSelectedIndex}
+								getFilteredProfiles={props.getFilteredProfiles}
+								handleProfileSelect={props.handleProfileSelect}
+								handleProfileEdit={props.handleProfileEdit}
+								profileSearchQuery={props.profileSearchQuery}
+								setProfileSearchQuery={props.setProfileSearchQuery}
+								onSwitchProfile={props.onSwitchProfile}
+								onCopyInputSuccess={() => {
+									setCopyStatusMessage({
+										text: `✔ ${t.chatScreen.inputCopySuccess}`,
+										timestamp: Date.now(),
+									});
+								}}
+								onCopyInputError={errorMessage => {
+									setCopyStatusMessage({
+										text: `✖ ${t.chatScreen.inputCopyFailedPrefix}: ${errorMessage}`,
+										isError: true,
+										timestamp: Date.now(),
+									});
+								}}
+							/>
+						)}
+
+						{showTodos && todos.length > 0 && (
+							<Box marginTop={1}>
+								<TodoTree todos={todos} />
+							</Box>
+						)}
+
+						<StatusLine
+							yoloMode={props.yoloMode}
+							planMode={props.planMode}
+							vulnerabilityHuntingMode={props.vulnerabilityHuntingMode}
+							toolSearchDisabled={props.toolSearchDisabled}
+							hybridCompressEnabled={props.hybridCompressEnabled}
+							teamMode={props.teamMode}
+							vscodeConnectionStatus={props.vscodeConnectionStatus}
+							editorContext={props.editorContext}
+							connectionStatus={connectionStatus}
+							connectionInstanceName={connectionInstanceName}
+							contextUsage={props.contextUsage}
+							codebaseIndexing={props.codebaseIndexing}
+							codebaseProgress={props.codebaseProgress}
+							watcherEnabled={props.watcherEnabled}
+							fileUpdateNotification={props.fileUpdateNotification}
+							copyStatusMessage={copyStatusMessage}
+							currentProfileName={props.currentProfileName}
+							compressBlockToast={props.compressBlockToast}
+						/>
+
+						{props.showBackgroundPanel && (
+							<BackgroundProcessPanel
+								processes={props.backgroundProcesses}
+								selectedIndex={props.selectedProcessIndex}
+								terminalWidth={props.terminalWidth}
+							/>
+						)}
+					</>
+				)}
 
 			{props.showReviewCommitPanel && (
 				<Box marginTop={1}>
@@ -408,6 +426,25 @@ const ChatFooter = React.memo(function ChatFooter(props: ChatFooterProps) {
 					onClose={() => props.setShowIdeSelectPanel(false)}
 					onConnectionChange={props.onIdeConnectionChange}
 				/>
+			)}
+
+			{props.showDiffReviewPanel && (
+				<Suspense
+					fallback={
+						<Box>
+							<Text>
+								<Spinner type="dots" /> Loading...
+							</Text>
+						</Box>
+					}
+				>
+					<DiffReviewPanel
+						messages={props.diffReviewMessages}
+						snapshotFileCount={props.diffReviewSnapshotFileCount}
+						onClose={() => props.setShowDiffReviewPanel(false)}
+						terminalWidth={props.terminalWidth}
+					/>
+				</Suspense>
 			)}
 		</>
 	);

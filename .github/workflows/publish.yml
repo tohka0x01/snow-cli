@@ -56,12 +56,7 @@ jobs:
 
             ### What's New
 
-            - Added more theme validation points and added macaron powder theme
-            - Optimize the user experience of the /profiles panel
-            - Add orphan tool cleanup logic when sub-proxy compression
-            - Improve terminal title display
-            - Fix the bug that IDE Diff doesn't trigger when editing multiple files.
-            - Fix the bug that IDE Diff is not triggered when editing multiple files.
+            - Fix Missing Difference Display for Diff Commands
 
             ### Installation
             ```bash

@@ -1465,6 +1465,10 @@ export const zh: TranslationKeys = {
 		title: 'Diff 审查',
 		noSnapshots: '该会话没有找到文件变更记录',
 		navigationHint: '↑↓ 导航 • Tab 查看文件 • Enter 打开全部 • ESC 关闭',
+		filesSuffix: '{count} 个文件',
+		filesViewNavigationHint: '↑↓ 导航 • Tab 返回 • Enter 打开全部 • ESC 关闭',
+		moreAbove: '↑ 上方还有 {count} 个',
+		moreBelow: '↓ 下方还有 {count} 个',
 	},
 	sessionListPanel: {
 		title: '恢复会话',

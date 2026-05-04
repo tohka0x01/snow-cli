@@ -49,7 +49,6 @@ type Props = {
 	terminalWidth: number;
 	workingDirectory: string;
 	panelState: PanelState & PanelActions;
-	messages: Message[];
 	snapshotState: SnapshotState;
 	handleSessionPanelSelect: (sessionId: string) => Promise<void>;
 	showPermissionsPanel: boolean;
@@ -72,7 +71,6 @@ export default function ChatScreenPanels({
 	terminalWidth,
 	workingDirectory,
 	panelState,
-	messages,
 	snapshotState,
 	handleSessionPanelSelect,
 	showPermissionsPanel,
@@ -106,12 +104,9 @@ export default function ChatScreenPanels({
 				showRoleSubagentList={panelState.showRoleSubagentList}
 				showWorkingDirPanel={panelState.showWorkingDirPanel}
 				showBranchPanel={panelState.showBranchPanel}
-				showDiffReviewPanel={panelState.showDiffReviewPanel}
 				showConnectionPanel={panelState.showConnectionPanel}
 				showTodoListPanel={panelState.showTodoListPanel}
 				connectionPanelApiUrl={panelState.connectionPanelApiUrl}
-				diffReviewMessages={messages}
-				diffReviewSnapshotFileCount={snapshotState.snapshotFileCount}
 				setShowSessionPanel={panelState.setShowSessionPanel}
 				setShowMcpPanel={panelState.setShowMcpPanel}
 				setShowCustomCommandConfig={panelState.setShowCustomCommandConfig}
@@ -124,7 +119,6 @@ export default function ChatScreenPanels({
 				setShowRoleSubagentList={panelState.setShowRoleSubagentList}
 				setShowWorkingDirPanel={panelState.setShowWorkingDirPanel}
 				setShowBranchPanel={panelState.setShowBranchPanel}
-				setShowDiffReviewPanel={panelState.setShowDiffReviewPanel}
 				setShowConnectionPanel={panelState.setShowConnectionPanel}
 				setShowTodoListPanel={panelState.setShowTodoListPanel}
 				handleSessionPanelSelect={handleSessionPanelSelect}
