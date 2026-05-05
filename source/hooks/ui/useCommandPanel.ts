@@ -40,6 +40,7 @@ export const COMMAND_ARGS_HINTS: Record<string, string> = {
 	'role-subagent': '[-l|--list | -d|--delete]',
 	'subagent-depth': '[<number>|status]',
 	btw: '<question>',
+	deepresearch: '<prompt>',
 	connect: '[apiUrl]',
 };
 
@@ -286,6 +287,12 @@ export function useCommandPanel(buffer: TextBuffer, isProcessing = false) {
 					'Ask a side-question while AI is working (temporary, no context saved)',
 				allowDuringProcessing: true,
 				mainFlowOnly: true,
+			},
+			{
+				name: 'deepresearch',
+				description:
+					t.commandPanel.commands.deepresearch ||
+					'Run an autonomous web research workflow and save a cited markdown report to .snow/deepresearch/',
 			},
 		],
 		[t],

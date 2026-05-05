@@ -11,6 +11,7 @@ import './commands/compact.js';
 import './commands/connect.js';
 import './commands/copyLast.js';
 import './commands/custom.js';
+import './commands/deepresearch.js';
 import './commands/diff.js';
 import './commands/export.js';
 import './commands/gitline.js';

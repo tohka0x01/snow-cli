@@ -614,6 +614,8 @@ export const zhTW: TranslationKeys = {
 			newPrompt: '根據需求使用 AI 生成精煉的提示詞',
 			pixel: '開啟終端像素編輯器',
 			btw: '在 AI 運行時快速提問（臨時對話，不儲存上下文）',
+			deepresearch:
+				'執行自主多步聯網深度研究，並將帶引用的 Markdown 報告儲存到 .snow/deepresearch/',
 			quit: '退出應用程式',
 		},
 		copyLastFeedback: {
@@ -653,6 +655,11 @@ export const zhTW: TranslationKeys = {
 				success:
 					'對話已分叉為分支 {name}。返回原會話請執行:\n/resume {originalId}',
 				failed: '會話分叉失敗',
+			},
+			// Deep Research 命令訊息
+			deepResearch: {
+				usage:
+					'用法: /deepresearch <提示詞>\n範例: /deepresearch 對比 OpenAI Deep Research 與 Gemini Deep Research 的架構差異',
 			},
 		},
 	},
@@ -1251,10 +1258,15 @@ export const zhTW: TranslationKeys = {
 		createSuccess: '角色創建成功',
 		deleteSuccess: '角色刪除成功',
 		loading: '處理中...',
-		hints: 'Tab: 切換作用域 | Enter: 啟用 | N: 新建 | D: 刪除 | ESC: 關閉',
+		hints:
+			'Tab: 切換作用域 | Enter: 啟用 | N: 新建 | D: 刪除 | R: 覆蓋系統提示詞 | ESC: 關閉',
 		cannotDeleteActive: '無法刪除啟用的角色',
 		confirmDelete: '確認刪除該角色？',
 		confirmDeleteHint: '按 Y 確認，按 N 取消',
+		overrideTag: '覆蓋',
+		overrideEnabled: '已啟用：使用該角色覆蓋系統提示詞',
+		overrideDisabled: '已關閉：恢復使用預設系統提示詞',
+		cannotOverrideInactive: '只有啟用的角色才能標記為覆蓋',
 	},
 
 	roleSubagentCreation: {

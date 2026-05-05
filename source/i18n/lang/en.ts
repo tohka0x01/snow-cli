@@ -655,6 +655,8 @@ export const en: TranslationKeys = {
 			newPrompt: 'Generate a refined prompt from your requirement using AI',
 			pixel: 'Open the terminal pixel editor',
 			btw: 'Ask a side-question while AI is working (temporary, no context saved)',
+			deepresearch:
+				'Run an autonomous multi-step web research workflow and save a cited markdown report to .snow/deepresearch/',
 			quit: 'Exit the application',
 		},
 		copyLastFeedback: {
@@ -695,6 +697,11 @@ export const en: TranslationKeys = {
 				success:
 					'Conversation forked into branch {name}. To return to the original session:\n/resume {originalId}',
 				failed: 'Failed to fork session',
+			},
+			// Deep Research command messages
+			deepResearch: {
+				usage:
+					'Usage: /deepresearch <prompt>\nExample: /deepresearch Compare the architectures of OpenAI Deep Research and Gemini Deep Research',
 			},
 		},
 	},
@@ -1327,10 +1334,14 @@ export const en: TranslationKeys = {
 		deleteSuccess: 'Role deleted successfully',
 		loading: 'Processing...',
 		hints:
-			'Tab: Switch scope | Enter: Activate | N: New | D: Delete | ESC: Close',
+			'Tab: Switch scope | Enter: Activate | N: New | D: Delete | R: Override prompt | ESC: Close',
 		cannotDeleteActive: 'Cannot delete active role',
 		confirmDelete: 'Confirm delete this role?',
 		confirmDeleteHint: 'Press Y to confirm, N to cancel',
+		overrideTag: 'Override',
+		overrideEnabled: 'Enabled: this role overrides the system prompt',
+		overrideDisabled: 'Disabled: default system prompt restored',
+		cannotOverrideInactive: 'Only the active role can be marked as override',
 	},
 
 	roleSubagentCreation: {

@@ -57,6 +57,7 @@ export interface CommandResult {
 		| 'showTaskManager'
 		| 'forkSession'
 		| 'btw'
+		| 'deepResearch'
 		| 'quit'
 		| 'disconnect';
 	prompt?: string;

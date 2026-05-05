@@ -604,6 +604,7 @@ export type TranslationKeys = {
 			newPrompt: string;
 			pixel: string;
 			btw: string;
+			deepresearch: string;
 			quit: string;
 		};
 		copyLastFeedback: {
@@ -640,6 +641,10 @@ export type TranslationKeys = {
 				noActiveSession: string;
 				success: string;
 				failed: string;
+			};
+			// Deep Research command messages
+			deepResearch: {
+				usage: string;
 			};
 		};
 	};
@@ -1244,6 +1249,10 @@ export type TranslationKeys = {
 		cannotDeleteActive: string;
 		confirmDelete: string;
 		confirmDeleteHint: string;
+		overrideTag: string;
+		overrideEnabled: string;
+		overrideDisabled: string;
+		cannotOverrideInactive: string;
 	};
 	roleSubagentCreation: {
 		title: string;

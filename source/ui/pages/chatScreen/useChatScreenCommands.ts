@@ -47,6 +47,7 @@ export function useChatScreenCommands(workingDirectory: string) {
 			import('../../../utils/commands/hybridCompress.js'),
 			import('../../../utils/commands/team.js'),
 			import('../../../utils/commands/btw.js'),
+			import('../../../utils/commands/deepresearch.js'),
 			import('../../../utils/commands/pixel.js'),
 		])
 			.then(async () => {

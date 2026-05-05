@@ -1161,6 +1161,24 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 				options.setMessages([commandMessage]);
 				// Auto-send the review prompt using advanced model (not basic model), hide the prompt from UI
 				options.processMessage(result.prompt, undefined, false, true);
+			} else if (
+				result.success &&
+				result.action === 'deepResearch' &&
+				result.prompt
+			) {
+				// Deep Research command: run as a normal advanced-model task while
+				// hiding the (very long) embedded prompt from the chat history.
+				// Show the original (truncated) user request under the command tree
+				// node — `result.message` is set by deepresearch.ts to the truncated
+				// user prompt, which formatCommandResultLines() renders as `└─ ...`.
+				const commandMessage: Message = {
+					role: 'command',
+					content: result.message || '',
+					commandName: commandName,
+				};
+				options.setMessages(prev => [...prev, commandMessage]);
+				// Use advanced model (basicModel=false) and hide the prompt from UI
+				options.processMessage(result.prompt, undefined, false, true);
 			} else if (result.success && result.action === 'exportChat') {
 				// Handle export chat command
 				// Show loading message first
