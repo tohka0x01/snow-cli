@@ -219,7 +219,7 @@ type Props = {
 	connectionStatus?: BackendConnectionStatus;
 	connectionInstanceName?: string;
 
-	// Token消耗信息
+	// 词元消耗信息
 	contextUsage?: StatusLineContextUsage;
 
 	// 代码库索引状态
@@ -386,8 +386,8 @@ export default function StatusLine({
 					showThinking: cfg?.showThinking,
 					streamIdleTimeoutSec: cfg?.streamIdleTimeoutSec,
 					systemPromptId: cfg?.systemPromptId,
-				customHeadersSchemeId: cfg?.customHeadersSchemeId,
-				toolResultTokenLimit: cfg?.toolResultTokenLimit,
+					customHeadersSchemeId: cfg?.customHeadersSchemeId,
+					toolResultTokenLimit: cfg?.toolResultTokenLimit,
 					streamingDisplay: cfg?.streamingDisplay,
 				},
 				compression: {
@@ -515,7 +515,7 @@ export default function StatusLine({
 		return null;
 	}
 
-	// 简易模式：横向单行显示状态，Token信息单独一行
+	// 简易模式：横向单行显示状态，词元信息单独一行
 	if (simpleMode) {
 		const statusItems: Array<{text: string; color: string}> = [];
 

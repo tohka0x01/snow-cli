@@ -26,6 +26,7 @@ export type PanelState = {
 	// 配置编辑面板：从 ProfilePanel 按右方向键进入，编辑指定 profile（不切换 active）
 	showProfileEditPanel: boolean;
 	editingProfileName: string | null;
+	showModelsPanel: boolean;
 	showDiffReviewPanel: boolean;
 	showConnectionPanel: boolean;
 	showNewPromptPanel: boolean;
@@ -60,6 +61,7 @@ export type PanelActions = {
 	setShowProfilePanel: Dispatch<SetStateAction<boolean>>;
 	setShowProfileEditPanel: Dispatch<SetStateAction<boolean>>;
 	setEditingProfileName: Dispatch<SetStateAction<string | null>>;
+	setShowModelsPanel: Dispatch<SetStateAction<boolean>>;
 	/**
 	 * 打开 ProfileEditPanel 编辑指定 profile：
 	 * 同时关闭 ProfilePanel（picker），切换为编辑视图。
@@ -109,6 +111,7 @@ export function usePanelState(): PanelState & PanelActions {
 	const [editingProfileName, setEditingProfileName] = useState<string | null>(
 		null,
 	);
+	const [showModelsPanel, setShowModelsPanel] = useState(false);
 	const [showDiffReviewPanel, setShowDiffReviewPanel] = useState(false);
 	const [showConnectionPanel, setShowConnectionPanel] = useState(false);
 	const [showNewPromptPanel, setShowNewPromptPanel] = useState(false);
@@ -149,6 +152,7 @@ export function usePanelState(): PanelState & PanelActions {
 			showReviewCommitPanel ||
 			showBranchPanel ||
 			showProfilePanel ||
+			showModelsPanel ||
 			showDiffReviewPanel ||
 			showConnectionPanel ||
 			showNewPromptPanel ||
@@ -311,6 +315,12 @@ export function usePanelState(): PanelState & PanelActions {
 			return true;
 		}
 
+		// ModelsPanel handles its own ESC key logic internally
+		// Don't close it here - let the panel decide when to close
+		if (showModelsPanel) {
+			return false; // Let ModelsPanel handle ESC
+		}
+
 		// NewPromptPanel handles its own ESC key logic internally
 		if (showNewPromptPanel) {
 			return false; // Let NewPromptPanel handle ESC
@@ -350,6 +360,7 @@ export function usePanelState(): PanelState & PanelActions {
 			showBranchPanel ||
 			showProfilePanel ||
 			showProfileEditPanel ||
+			showModelsPanel ||
 			showDiffReviewPanel ||
 			showConnectionPanel ||
 			showNewPromptPanel ||
@@ -379,6 +390,7 @@ export function usePanelState(): PanelState & PanelActions {
 		showProfilePanel,
 		showProfileEditPanel,
 		editingProfileName,
+		showModelsPanel,
 		showDiffReviewPanel,
 		showConnectionPanel,
 		showNewPromptPanel,
@@ -408,6 +420,7 @@ export function usePanelState(): PanelState & PanelActions {
 		setShowProfilePanel,
 		setShowProfileEditPanel,
 		setEditingProfileName,
+		setShowModelsPanel,
 		openProfileEdit,
 		closeProfileEditAndReturnToPicker,
 		setShowDiffReviewPanel,

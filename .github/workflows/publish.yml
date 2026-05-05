@@ -56,7 +56,7 @@ jobs:
 
             ### What's New
 
-            - Fix Missing Difference Display for Diff Commands
+            - Add the /models command for quick model switching
 
             ### Installation
             ```bash

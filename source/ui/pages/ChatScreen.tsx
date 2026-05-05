@@ -267,6 +267,7 @@ export default function ChatScreen({
 		setShowMcpPanel: panelState.setShowMcpPanel,
 		setShowHelpPanel: panelState.setShowHelpPanel,
 		setShowUsagePanel: panelState.setShowUsagePanel,
+		setShowModelsPanel: panelState.setShowModelsPanel,
 		setShowSubAgentDepthPanel,
 		setShowCustomCommandConfig: panelState.setShowCustomCommandConfig,
 		setShowSkillsCreation: panelState.setShowSkillsCreation,
@@ -376,6 +377,7 @@ export default function ChatScreen({
 		panelState.showUsagePanel ||
 		panelState.showHelpPanel ||
 		panelState.showProfileEditPanel ||
+		panelState.showModelsPanel ||
 		panelState.showCustomCommandConfig ||
 		panelState.showSkillsCreation ||
 		panelState.showRoleCreation ||
@@ -509,6 +511,8 @@ export default function ChatScreen({
 				setShowPermissionsPanel={setShowPermissionsPanel}
 				showSubAgentDepthPanel={showSubAgentDepthPanel}
 				setShowSubAgentDepthPanel={setShowSubAgentDepthPanel}
+				modelsPanelAdvancedModel={getSnowConfig().advancedModel || ''}
+				modelsPanelBasicModel={getSnowConfig().basicModel || ''}
 				alwaysApprovedTools={alwaysApprovedTools}
 				removeFromAlwaysApproved={removeFromAlwaysApproved}
 				clearAllAlwaysApproved={clearAllAlwaysApproved}

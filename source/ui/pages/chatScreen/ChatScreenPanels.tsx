@@ -33,6 +33,11 @@ const SubAgentDepthPanel = lazy(
 const ProfileEditPanel = lazy(
 	() => import('../../components/panels/ProfileEditPanel.js'),
 );
+const ModelsPanel = lazy(() =>
+	import('../../components/panels/ModelsPanel.js').then(m => ({
+		default: m.ModelsPanel,
+	})),
+);
 
 type SnapshotState = {
 	snapshotFileCount: Map<number, number>;
@@ -55,6 +60,8 @@ type Props = {
 	setShowPermissionsPanel: Dispatch<SetStateAction<boolean>>;
 	showSubAgentDepthPanel: boolean;
 	setShowSubAgentDepthPanel: Dispatch<SetStateAction<boolean>>;
+	modelsPanelAdvancedModel: string;
+	modelsPanelBasicModel: string;
 	alwaysApprovedTools: Set<string>;
 	removeFromAlwaysApproved: (toolName: string) => void;
 	clearAllAlwaysApproved: () => void;
@@ -77,6 +84,8 @@ export default function ChatScreenPanels({
 	setShowPermissionsPanel,
 	showSubAgentDepthPanel,
 	setShowSubAgentDepthPanel,
+	modelsPanelAdvancedModel,
+	modelsPanelBasicModel,
 	alwaysApprovedTools,
 	removeFromAlwaysApproved,
 	clearAllAlwaysApproved,
@@ -454,6 +463,27 @@ export default function ChatScreenPanels({
 					<PixelEditorScreen
 						onBack={() => panelState.setShowPixelEditor(false)}
 					/>
+				</Box>
+			)}
+
+			{panelState.showModelsPanel && (
+				<Box paddingX={1} flexDirection="column" width={terminalWidth}>
+					<Suspense
+						fallback={
+							<Box>
+								<Text>
+									<Spinner type="dots" /> Loading...
+								</Text>
+							</Box>
+						}
+					>
+						<ModelsPanel
+							advancedModel={modelsPanelAdvancedModel}
+							basicModel={modelsPanelBasicModel}
+							visible={panelState.showModelsPanel}
+							onClose={() => panelState.setShowModelsPanel(false)}
+						/>
+					</Suspense>
 				</Box>
 			)}
 

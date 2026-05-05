@@ -136,6 +136,11 @@ export function useCommandPanel(buffer: TextBuffer, isProcessing = false) {
 				description: t.commandPanel.commands.profiles,
 			},
 			{
+				name: 'models',
+				description:
+					t.commandPanel.commands.models || 'Open the model switching panel',
+			},
+			{
 				name: 'loop',
 				description:
 					t.commandPanel.commands.loop ||

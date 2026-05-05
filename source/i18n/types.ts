@@ -577,6 +577,7 @@ export type TranslationKeys = {
 			backend: string;
 			loop: string;
 			profiles: string;
+			models: string;
 			subAgentDepth: string;
 			export: string;
 			custom: string;
@@ -765,6 +766,42 @@ export type TranslationKeys = {
 		hint: string;
 		fileHint: string;
 	};
+	modelsPanel: {
+		title: string;
+		subtitle: string;
+		tabAdvanced: string;
+		tabBasic: string;
+		tabThinking: string;
+		currentModel: string;
+		notSet: string;
+		loadingModels: string;
+		hint: string;
+		manualInputTitle: string;
+		manualInputHint: string;
+		filterLabel: string;
+		manualInputOption: string;
+		requestMethod: string;
+		showThinkingProcess: string;
+		enableThinking: string;
+		thinkingMode: string;
+		thinkingStrength: string;
+		inputNumberHint: string;
+		escCancel: string;
+		navigationHint: string;
+		notSupported: string;
+		advancedModelLabel: string;
+		basicModelLabel: string;
+		thinkingLabel: string;
+		requestMethodNotSupportedForThinking: string;
+		requestMethodNotSupportedForThinkingStrength: string;
+		anthropicSpeed: string;
+		saveFailed: string;
+		modelSaveFailed: string;
+		tipLabel: string;
+		modelCount: string;
+		scrollHint: string;
+	};
+
 	// Hooks
 	hooks: {
 		pressCtrlCAgain: string;
