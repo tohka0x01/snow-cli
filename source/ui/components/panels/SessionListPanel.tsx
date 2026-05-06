@@ -6,6 +6,7 @@ import {
 } from '../../../utils/session/sessionManager.js';
 import {useI18n} from '../../../i18n/index.js';
 import {useTheme} from '../../contexts/ThemeContext.js';
+import {useTerminalSize} from '../../../hooks/ui/useTerminalSize.js';
 
 type Props = {
 	onSelectSession: (sessionId: string) => void;
@@ -15,6 +16,7 @@ type Props = {
 export default function SessionListPanel({onSelectSession, onClose}: Props) {
 	const {t} = useI18n();
 	const {theme} = useTheme();
+	const {columns: terminalWidth} = useTerminalSize();
 	const [sessions, setSessions] = useState<SessionListItem[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
@@ -344,6 +346,11 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 
 	return (
 		<Box paddingX={1} flexDirection="column">
+			<Box height={1}>
+				<Text color={theme.colors.menuSecondary} dimColor>
+					{'─'.repeat(Math.max(0, terminalWidth - 2))}
+				</Text>
+			</Box>
 			<Box flexDirection="column">
 				<Text color={theme.colors.menuInfo} bold>
 					{t.sessionListPanel.title} ({selectedIndex + 1}/{sessions.length}
