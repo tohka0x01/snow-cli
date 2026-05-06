@@ -661,6 +661,24 @@ export const zhTW: TranslationKeys = {
 				usage:
 					'用法: /deepresearch <提示詞>\n範例: /deepresearch 對比 OpenAI Deep Research 與 Gemini Deep Research 的架構差異',
 			},
+			// Loop 命令訊息
+			loop: {
+				usage:
+					'用法: /loop 5m <提示詞> | /loop 8h30m <提示詞> | /loop <提示詞> every 2 hours | /loop list | /loop cancel <id> | /loop tasks',
+				openingTaskManager: '正在開啟任務管理員...',
+				relatedLoopTasks: '相關迴圈任務:',
+				noActiveLoops:
+					'目前沒有活躍的迴圈任務。可使用 /loop 5m <提示詞> 或 /loop <提示詞> every 2 hours 建立。',
+				loopNotFound: '找不到迴圈任務: {id}',
+				cancelled: '已取消迴圈任務 {id}（每 {interval}）',
+				created: '迴圈任務已建立: {id}',
+				scheduleEvery: '排程: 每 {interval}',
+				promptLabel: '提示詞: {prompt}',
+				nextRun: '下次執行: {time}',
+				sessionScopedNote: '僅限會話作用域: Snow CLI 結束後迴圈任務將停止。',
+				usageHint:
+					'使用 /loop list 檢視任務，或使用 /loop cancel <id> 停止某個任務。',
+			},
 		},
 	},
 	fileList: {
@@ -1537,6 +1555,7 @@ export const zhTW: TranslationKeys = {
 		renamePrompt: '重新命名會話',
 		renaming: '重新命名中...',
 		renamePlaceholder: '輸入新的標題',
+		confirmDelete: '1 秒內再按一次 D 確認刪除（共 {count} 個）',
 	},
 	mcpInfoPanel: {
 		title: 'MCP 服務',
@@ -1567,6 +1586,18 @@ export const zhTW: TranslationKeys = {
 		toolScopeProject: '[專案]',
 		mcpSourceProject: ' [專案]',
 		mcpSourceGlobal: ' [全域]',
+	},
+	skillsListPanel: {
+		title: '技能列表',
+		loading: '載入技能中...',
+		error: '錯誤: {message}',
+		noSkills: '沒有可用的技能',
+		locationProject: '(專案)',
+		locationGlobal: '(全域)',
+		statusDisabled: '(已停用)',
+		navigationHint: '↑↓ 導航 • Tab/空格/Enter 啟停 • ESC 關閉',
+		moreAbove: '↑ 上方還有 {count} 項',
+		moreBelow: '↓ 下方還有 {count} 項',
 	},
 	mcpConfigScreen: {
 		title: 'MCP 設定 - 選擇編輯範圍',

@@ -37,6 +37,7 @@ export const COMMAND_ARGS_HINTS: Record<string, string> = {
 	'add-dir': '[path]',
 	loop: '<interval> <prompt> | list | tasks | cancel <id>',
 	role: '[-l|--list | -d|--delete]',
+	skills: '[-l|--list]',
 	'role-subagent': '[-l|--list | -d|--delete]',
 	'subagent-depth': '[<number>|status]',
 	btw: '<question>',
@@ -51,9 +52,10 @@ export const COMMAND_ARGS_OPTIONS: Record<string, string[]> = {
 	'auto-format': ['on', 'off', 'status'],
 	reindex: ['-force'],
 	role: ['-l', '-d'],
+	skills: ['-l'],
 	'role-subagent': ['-l', '-d'],
 	'subagent-depth': ['status'],
-	loop: ['list', 'tasks'],
+	loop: ['list', 'tasks', 'cancel'],
 };
 
 export function useCommandPanel(buffer: TextBuffer, isProcessing = false) {

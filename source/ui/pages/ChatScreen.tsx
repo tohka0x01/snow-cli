@@ -271,6 +271,7 @@ export default function ChatScreen({
 		setShowSubAgentDepthPanel,
 		setShowCustomCommandConfig: panelState.setShowCustomCommandConfig,
 		setShowSkillsCreation: panelState.setShowSkillsCreation,
+		setShowSkillsListPanel: panelState.setShowSkillsListPanel,
 		setShowRoleCreation: panelState.setShowRoleCreation,
 		setShowRoleDeletion: panelState.setShowRoleDeletion,
 		setShowRoleList: panelState.setShowRoleList,
@@ -542,6 +543,8 @@ export default function ChatScreen({
 					diffReviewSnapshotFileCount={snapshotState.snapshotFileCount}
 					showIdeSelectPanel={panelState.showIdeSelectPanel}
 					setShowIdeSelectPanel={panelState.setShowIdeSelectPanel}
+					showSkillsListPanel={panelState.showSkillsListPanel}
+					setShowSkillsListPanel={panelState.setShowSkillsListPanel}
 					onIdeConnectionChange={(status, message) => {
 						vscodeState.setVscodeConnectionStatus(status);
 						if (message) {

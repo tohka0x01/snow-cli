@@ -646,6 +646,21 @@ export type TranslationKeys = {
 			deepResearch: {
 				usage: string;
 			};
+			// Loop command messages
+			loop: {
+				usage: string;
+				openingTaskManager: string;
+				relatedLoopTasks: string;
+				noActiveLoops: string;
+				loopNotFound: string;
+				cancelled: string;
+				created: string;
+				scheduleEvery: string;
+				promptLabel: string;
+				nextRun: string;
+				sessionScopedNote: string;
+				usageHint: string;
+			};
 		};
 	};
 	// File search list (`@` panel)
@@ -1521,6 +1536,7 @@ export type TranslationKeys = {
 		renamePrompt: string;
 		renaming: string;
 		renamePlaceholder: string;
+		confirmDelete: string;
 	};
 	mcpInfoPanel: {
 		title: string;
@@ -1551,6 +1567,18 @@ export type TranslationKeys = {
 		toolScopeProject: string;
 		mcpSourceProject: string;
 		mcpSourceGlobal: string;
+	};
+	skillsListPanel: {
+		title: string;
+		loading: string;
+		error: string;
+		noSkills: string;
+		locationProject: string;
+		locationGlobal: string;
+		statusDisabled: string;
+		navigationHint: string;
+		moreAbove: string;
+		moreBelow: string;
 	};
 	mcpConfigScreen: {
 		title: string;

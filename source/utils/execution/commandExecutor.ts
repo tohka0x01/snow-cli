@@ -36,6 +36,7 @@ export interface CommandResult {
 		| 'executeTerminalCommand'
 		| 'deleteCustomCommand'
 		| 'showSkillsCreation'
+		| 'showSkillsListPanel'
 		| 'showRoleCreation'
 		| 'showRoleDeletion'
 		| 'showRoleList'

@@ -417,6 +417,7 @@ type CommandHandlerOptions = {
 	setShowSubAgentDepthPanel: React.Dispatch<React.SetStateAction<boolean>>;
 	setShowCustomCommandConfig: React.Dispatch<React.SetStateAction<boolean>>;
 	setShowSkillsCreation: React.Dispatch<React.SetStateAction<boolean>>;
+	setShowSkillsListPanel: React.Dispatch<React.SetStateAction<boolean>>;
 	setShowRoleCreation: React.Dispatch<React.SetStateAction<boolean>>;
 	setShowRoleDeletion: React.Dispatch<React.SetStateAction<boolean>>;
 	setShowRoleList: React.Dispatch<React.SetStateAction<boolean>>;
@@ -731,6 +732,14 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 				options.setMessages(prev => [...prev, commandMessage]);
 			} else if (result.success && result.action === 'showSkillsCreation') {
 				options.setShowSkillsCreation(true);
+				const commandMessage: Message = {
+					role: 'command',
+					content: '',
+					commandName: commandName,
+				};
+				options.setMessages(prev => [...prev, commandMessage]);
+			} else if (result.success && result.action === 'showSkillsListPanel') {
+				options.setShowSkillsListPanel(true);
 				const commandMessage: Message = {
 					role: 'command',
 					content: '',

@@ -660,6 +660,24 @@ export const zh: TranslationKeys = {
 				usage:
 					'用法: /deepresearch <提示词>\n示例: /deepresearch 对比 OpenAI Deep Research 与 Gemini Deep Research 的架构差异',
 			},
+			// Loop 命令消息
+			loop: {
+				usage:
+					'用法: /loop 5m <提示词> | /loop 8h30m <提示词> | /loop <提示词> every 2 hours | /loop list | /loop cancel <id> | /loop tasks',
+				openingTaskManager: '正在打开任务管理器...',
+				relatedLoopTasks: '相关循环任务:',
+				noActiveLoops:
+					'暂无活跃的循环任务。可使用 /loop 5m <提示词> 或 /loop <提示词> every 2 hours 创建。',
+				loopNotFound: '未找到循环任务: {id}',
+				cancelled: '已取消循环任务 {id}（每 {interval}）',
+				created: '循环任务已创建: {id}',
+				scheduleEvery: '调度: 每 {interval}',
+				promptLabel: '提示词: {prompt}',
+				nextRun: '下次运行: {time}',
+				sessionScopedNote: '仅限会话作用域: Snow CLI 退出后循环任务将停止。',
+				usageHint:
+					'使用 /loop list 查看任务，或使用 /loop cancel <id> 停止某个任务。',
+			},
 		},
 	},
 	fileList: {
@@ -1541,6 +1559,7 @@ export const zh: TranslationKeys = {
 		renamePrompt: '重命名会话',
 		renaming: '重命名中...',
 		renamePlaceholder: '输入新的标题',
+		confirmDelete: '1 秒内再按一次 D 确认删除（共 {count} 个）',
 	},
 	mcpInfoPanel: {
 		title: 'MCP 服务',
@@ -1571,6 +1590,18 @@ export const zh: TranslationKeys = {
 		toolScopeProject: '[项目]',
 		mcpSourceProject: ' [项目]',
 		mcpSourceGlobal: ' [全局]',
+	},
+	skillsListPanel: {
+		title: '技能列表',
+		loading: '加载技能中...',
+		error: '错误: {message}',
+		noSkills: '没有可用的技能',
+		locationProject: '(项目)',
+		locationGlobal: '(全局)',
+		statusDisabled: '(已禁用)',
+		navigationHint: '↑↓ 导航 • Tab/空格/Enter 启停 • ESC 关闭',
+		moreAbove: '↑ 上方还有 {count} 项',
+		moreBelow: '↓ 下方还有 {count} 项',
 	},
 	mcpConfigScreen: {
 		title: 'MCP 配置 - 选择编辑范围',

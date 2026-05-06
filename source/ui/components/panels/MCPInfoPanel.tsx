@@ -13,17 +13,12 @@ import {
 } from '../../../utils/config/apiConfig.js';
 import {toggleBuiltInService} from '../../../utils/config/disabledBuiltInTools.js';
 import {
-	toggleSkill,
-	isSkillEnabled,
-} from '../../../utils/config/disabledSkills.js';
-import {
 	toggleMCPTool,
 	isMCPToolEnabled,
 	isMCPToolDisabledInScope,
 } from '../../../utils/config/disabledMCPTools.js';
 import {useI18n} from '../../../i18n/I18nContext.js';
 import {useTheme} from '../../contexts/ThemeContext.js';
-import type {Skill} from '../../../mcp/skills.js';
 
 // Sub-component for displaying tools list with scrolling support
 interface ToolsListProps {
@@ -176,10 +171,6 @@ interface SelectItem {
 	error?: string;
 	isRefreshAll?: boolean;
 	enabled?: boolean;
-	isSkill?: boolean;
-	isSectionHeader?: boolean;
-	skillLocation?: 'project' | 'global';
-	skillDescription?: string;
 	source?: MCPConfigScope;
 }
 
@@ -187,16 +178,10 @@ interface Props {
 	onClose: () => void;
 }
 
-const NON_FOCUSED_SKILL_DESC_MAX_LEN = 20;
-
 export default function MCPInfoPanel({onClose}: Props) {
 	const {t} = useI18n();
 	const {theme} = useTheme();
 	const [mcpStatus, setMcpStatus] = useState<MCPConnectionStatus[]>([]);
-	const [skills, setSkills] = useState<Skill[]>([]);
-	const [skillEnabledMap, setSkillEnabledMap] = useState<
-		Record<string, boolean>
-	>({});
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -251,31 +236,11 @@ export default function MCPInfoPanel({onClose}: Props) {
 		}
 	};
 
-	const loadSkills = async () => {
-		try {
-			const {listAvailableSkills} = await import('../../../mcp/skills.js');
-			const skillsList = await listAvailableSkills(process.cwd());
-			setSkills(skillsList);
-			// Build enabled map
-			const enabledMap: Record<string, boolean> = {};
-			for (const skill of skillsList) {
-				enabledMap[skill.id] = isSkillEnabled(skill.id);
-			}
-			setSkillEnabledMap(enabledMap);
-		} catch {
-			// Skills loading failure is non-critical, just show empty
-		}
-	};
-
 	useEffect(() => {
 		let isMounted = true;
 
-		const load = async () => {
-			await Promise.all([loadMCPStatus(), loadSkills()]);
-		};
-
 		if (isMounted) {
-			load();
+			loadMCPStatus();
 		}
 
 		return () => {
@@ -284,7 +249,6 @@ export default function MCPInfoPanel({onClose}: Props) {
 	}, []);
 
 	const handleServiceSelect = async (item: SelectItem) => {
-		if (item.isSectionHeader || item.isSkill) return;
 		setIsReconnecting(true);
 		try {
 			if (item.value === 'refresh-all') {
@@ -307,7 +271,7 @@ export default function MCPInfoPanel({onClose}: Props) {
 		}
 	};
 
-	// Build select items: services + skills
+	// Build select items: services only
 	const selectItems: SelectItem[] = [
 		{
 			label: t.mcpInfoPanel.refreshAll,
@@ -324,25 +288,6 @@ export default function MCPInfoPanel({onClose}: Props) {
 			source: s.source,
 		})),
 	];
-
-	// Add skills section header + skill items
-	if (skills.length > 0) {
-		selectItems.push({
-			label: t.mcpInfoPanel.skillsTitle,
-			value: '__skills_header__',
-			isSectionHeader: true,
-		});
-		for (const skill of skills) {
-			selectItems.push({
-				label: skill.name || skill.id,
-				value: skill.id,
-				isSkill: true,
-				enabled: skillEnabledMap[skill.id] !== false,
-				skillLocation: skill.location,
-				skillDescription: skill.description,
-			});
-		}
-	}
 
 	// Windowed display to prevent excessive height
 	const MAX_DISPLAY_ITEMS = 8;
@@ -379,16 +324,6 @@ export default function MCPInfoPanel({onClose}: Props) {
 		0,
 		selectItems.length - displayWindow.endIndex,
 	);
-	const formatSkillDescription = (
-		description: string,
-		isSelected: boolean,
-	): string => {
-		if (isSelected || description.length <= NON_FOCUSED_SKILL_DESC_MAX_LEN) {
-			return description;
-		}
-
-		return `${description.slice(0, NON_FOCUSED_SKILL_DESC_MAX_LEN - 3)}...`;
-	};
 
 	// Listen for keyboard input
 	useInput(async (input, key) => {
@@ -463,27 +398,13 @@ export default function MCPInfoPanel({onClose}: Props) {
 			return;
 		}
 
-		// Arrow key navigation — skip section headers
+		// Arrow key navigation
 		if (key.upArrow) {
-			setSelectedIndex(prev => {
-				let next = prev > 0 ? prev - 1 : selectItems.length - 1;
-				// Skip section headers
-				if (selectItems[next]?.isSectionHeader) {
-					next = next > 0 ? next - 1 : selectItems.length - 1;
-				}
-				return next;
-			});
+			setSelectedIndex(prev => (prev > 0 ? prev - 1 : selectItems.length - 1));
 			return;
 		}
 		if (key.downArrow) {
-			setSelectedIndex(prev => {
-				let next = prev < selectItems.length - 1 ? prev + 1 : 0;
-				// Skip section headers
-				if (selectItems[next]?.isSectionHeader) {
-					next = next < selectItems.length - 1 ? next + 1 : 0;
-				}
-				return next;
-			});
+			setSelectedIndex(prev => (prev < selectItems.length - 1 ? prev + 1 : 0));
 			return;
 		}
 
@@ -499,12 +420,7 @@ export default function MCPInfoPanel({onClose}: Props) {
 		// 'v' key to view tools list for selected service
 		if (input.toLowerCase() === 'v') {
 			const currentItem = selectItems[selectedIndex];
-			if (
-				currentItem &&
-				!currentItem.isRefreshAll &&
-				!currentItem.isSectionHeader &&
-				!currentItem.isSkill
-			) {
+			if (currentItem && !currentItem.isRefreshAll) {
 				const service = mcpStatus.find(s => s.name === currentItem.value);
 				if (service && service.tools.length > 0) {
 					const enabledMap: Record<string, boolean> = {};
@@ -534,30 +450,7 @@ export default function MCPInfoPanel({onClose}: Props) {
 		// Tab key to toggle enabled/disabled
 		if (key.tab) {
 			const currentItem = selectItems[selectedIndex];
-			if (
-				!currentItem ||
-				currentItem.isRefreshAll ||
-				currentItem.isSectionHeader
-			)
-				return;
-
-			// Skill toggle is a pure local state change — handle it without
-			// switching to the "toggling" overlay (which would unmount the list
-			// and cause the cursor/selection to visually jump in the terminal).
-			if (currentItem.isSkill) {
-				try {
-					toggleSkill(currentItem.value);
-					setSkillEnabledMap(prev => ({
-						...prev,
-						[currentItem.value]: !prev[currentItem.value],
-					}));
-				} catch (error) {
-					setErrorMessage(
-						error instanceof Error ? error.message : 'Failed to toggle skill',
-					);
-				}
-				return;
-			}
+			if (!currentItem || currentItem.isRefreshAll) return;
 
 			try {
 				setTogglingService(currentItem.label);
@@ -612,7 +505,7 @@ export default function MCPInfoPanel({onClose}: Props) {
 		);
 	}
 
-	if (mcpStatus.length === 0 && skills.length === 0) {
+	if (mcpStatus.length === 0) {
 		return (
 			<Box
 				borderColor={theme.colors.menuInfo}
@@ -700,17 +593,6 @@ export default function MCPInfoPanel({onClose}: Props) {
 								const originalIndex = displayWindow.startIndex + displayIndex;
 								const isSelected = originalIndex === selectedIndex;
 
-								// Render section header (Skills title)
-								if (item.isSectionHeader) {
-									return (
-										<Box key={item.value} marginTop={1}>
-											<Text color={theme.colors.menuInfo} bold>
-												{item.label}
-											</Text>
-										</Box>
-									);
-								}
-
 								// Render refresh-all item
 								if (item.isRefreshAll) {
 									return (
@@ -722,64 +604,6 @@ export default function MCPInfoPanel({onClose}: Props) {
 											>
 												{isSelected ? '❯ ' : '  '}↻ {t.mcpInfoPanel.refreshAll}
 											</Text>
-										</Box>
-									);
-								}
-
-								// Render skill item
-								if (item.isSkill) {
-									const isEnabled = item.enabled !== false;
-									const locationSuffix =
-										item.skillLocation === 'project'
-											? t.mcpInfoPanel.skillLocationProject
-											: t.mcpInfoPanel.skillLocationGlobal;
-									const skillDescription = item.skillDescription?.trim();
-									const hasDescription = Boolean(skillDescription);
-									const renderedDescription = hasDescription
-										? formatSkillDescription(
-												skillDescription as string,
-												isSelected,
-										  )
-										: '';
-
-									return (
-										<Box key={item.value} flexDirection="column">
-											<Text>
-												{isSelected ? '❯ ' : '  '}
-												<Text
-													color={
-														isEnabled
-															? theme.colors.success
-															: theme.colors.menuSecondary
-													}
-												>
-													◆{' '}
-												</Text>
-												<Text
-													color={
-														isSelected
-															? theme.colors.menuInfo
-															: isEnabled
-															? theme.colors.text
-															: theme.colors.menuSecondary
-													}
-												>
-													{item.label}
-												</Text>
-												<Text color={theme.colors.menuSecondary} dimColor>
-													{' '}
-													{isEnabled
-														? locationSuffix
-														: t.mcpInfoPanel.statusDisabled}
-												</Text>
-											</Text>
-											{isEnabled && hasDescription ? (
-												<Box marginLeft={4}>
-													<Text color={theme.colors.menuSecondary} dimColor>
-														{renderedDescription}
-													</Text>
-												</Box>
-											) : null}
 										</Box>
 									);
 								}

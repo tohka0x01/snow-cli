@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {Box, Text, useInput} from 'ink';
 import {
 	sessionManager,
@@ -31,6 +31,16 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 	);
 	const [renameInput, setRenameInput] = useState('');
 	const [isRenaming, setIsRenaming] = useState(false);
+	const [pendingDeleteCount, setPendingDeleteCount] = useState(0);
+	const pendingDeleteTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (pendingDeleteTimerRef.current) {
+				clearTimeout(pendingDeleteTimerRef.current);
+			}
+		};
+	}, []);
 
 	const VISIBLE_ITEMS = 10;
 	const PAGE_SIZE = 20;
@@ -235,30 +245,60 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 		}
 
 		if (input === 'd' || input === 'D') {
-			if (markedSessions.size > 0) {
-				const deleteMarked = async () => {
-					const ids = Array.from(markedSessions);
-					await Promise.all(ids.map(id => sessionManager.deleteSession(id)));
-					const result = await sessionManager.listSessionsPaginated(
-						0,
-						PAGE_SIZE,
-						debouncedSearch,
-					);
-					setSessions(result.sessions);
-					setHasMore(result.hasMore);
-					setTotalCount(result.total);
-					setCurrentPage(0);
-					setMarkedSessions(new Set());
-					if (
-						selectedIndex >= result.sessions.length &&
-						result.sessions.length > 0
-					) {
-						setSelectedIndex(result.sessions.length - 1);
-					}
-					setScrollOffset(0);
-				};
-				void deleteMarked();
+			const idsToDelete: string[] =
+				markedSessions.size > 0
+					? Array.from(markedSessions)
+					: sessions[selectedIndex]
+					? [sessions[selectedIndex]!.id]
+					: [];
+
+			if (idsToDelete.length === 0) {
+				return;
 			}
+
+			// First press: show confirmation prompt for 1 second
+			if (pendingDeleteCount === 0) {
+				setPendingDeleteCount(idsToDelete.length);
+				if (pendingDeleteTimerRef.current) {
+					clearTimeout(pendingDeleteTimerRef.current);
+				}
+				pendingDeleteTimerRef.current = setTimeout(() => {
+					setPendingDeleteCount(0);
+					pendingDeleteTimerRef.current = null;
+				}, 1000);
+				return;
+			}
+
+			// Second press within 1s: actually delete
+			if (pendingDeleteTimerRef.current) {
+				clearTimeout(pendingDeleteTimerRef.current);
+				pendingDeleteTimerRef.current = null;
+			}
+			setPendingDeleteCount(0);
+
+			const deleteSessions = async () => {
+				await Promise.all(
+					idsToDelete.map(id => sessionManager.deleteSession(id)),
+				);
+				const result = await sessionManager.listSessionsPaginated(
+					0,
+					PAGE_SIZE,
+					debouncedSearch,
+				);
+				setSessions(result.sessions);
+				setHasMore(result.hasMore);
+				setTotalCount(result.total);
+				setCurrentPage(0);
+				setMarkedSessions(new Set());
+				if (
+					selectedIndex >= result.sessions.length &&
+					result.sessions.length > 0
+				) {
+					setSelectedIndex(result.sessions.length - 1);
+				}
+				setScrollOffset(0);
+			};
+			void deleteSessions();
 			return;
 		}
 
@@ -326,6 +366,16 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 						<Text color={theme.colors.menuSecondary}>
 							{' '}
 							• {t.sessionListPanel.loadingMore}
+						</Text>
+					)}
+					{pendingDeleteCount > 0 && (
+						<Text color={theme.colors.error || theme.colors.warning} bold>
+							{' '}
+							•{' '}
+							{t.sessionListPanel.confirmDelete.replace(
+								'{count}',
+								String(pendingDeleteCount),
+							)}
 						</Text>
 					)}
 				</Text>

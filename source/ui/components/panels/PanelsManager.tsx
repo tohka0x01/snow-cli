@@ -219,7 +219,6 @@ export default function PanelsManager({
 				</Box>
 			)}
 
-			{/* Show role creation panel if active */}
 			{showRoleCreation && (
 				<Box paddingX={1} flexDirection="column" width={terminalWidth}>
 					<RoleCreationPanel

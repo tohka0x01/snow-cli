@@ -19,6 +19,7 @@ import type {ReviewCommitSelection} from '../panels/ReviewCommitPanel.js';
 import {IdeSelectPanel} from '../panels/IdeSelectPanel.js';
 const BtwPanel = lazy(() => import('../panels/BtwPanel.js'));
 const DiffReviewPanel = lazy(() => import('../panels/DiffReviewPanel.js'));
+const SkillsListPanel = lazy(() => import('../panels/SkillsListPanel.js'));
 
 type ChatFooterProps = {
 	onSubmit: (
@@ -147,6 +148,10 @@ type ChatFooterProps = {
 		message?: string,
 	) => void;
 
+	// Skills list panel props
+	showSkillsListPanel: boolean;
+	setShowSkillsListPanel: React.Dispatch<React.SetStateAction<boolean>>;
+
 	// BTW panel props
 	btwPrompt: string | null;
 	onBtwClose: () => void;
@@ -270,17 +275,19 @@ const ChatFooter = React.memo(function ChatFooter(props: ChatFooterProps) {
 		if (
 			props.showReviewCommitPanel ||
 			props.showIdeSelectPanel ||
-			props.showDiffReviewPanel
+			props.showDiffReviewPanel ||
+			props.showSkillsListPanel
 		) {
 			props.onDraftChange(null);
 		}
-	}, [props.showReviewCommitPanel, props.showIdeSelectPanel, props.showDiffReviewPanel]);
+	}, [props.showReviewCommitPanel, props.showIdeSelectPanel, props.showDiffReviewPanel, props.showSkillsListPanel]);
 
 	return (
 		<>
 			{!props.showReviewCommitPanel &&
 				!props.showIdeSelectPanel &&
-				!props.showDiffReviewPanel && (
+				!props.showDiffReviewPanel &&
+				!props.showSkillsListPanel && (
 					<>
 						<LoadingIndicator
 							isStreaming={props.isStreaming}
@@ -426,6 +433,24 @@ const ChatFooter = React.memo(function ChatFooter(props: ChatFooterProps) {
 					onClose={() => props.setShowIdeSelectPanel(false)}
 					onConnectionChange={props.onIdeConnectionChange}
 				/>
+			)}
+
+			{props.showSkillsListPanel && (
+				<Box marginTop={1} flexDirection="column">
+					<Suspense
+						fallback={
+							<Box>
+								<Text>
+									<Spinner type="dots" /> Loading...
+								</Text>
+							</Box>
+						}
+					>
+						<SkillsListPanel
+							onClose={() => props.setShowSkillsListPanel(false)}
+						/>
+					</Suspense>
+				</Box>
 			)}
 
 			{props.showDiffReviewPanel && (

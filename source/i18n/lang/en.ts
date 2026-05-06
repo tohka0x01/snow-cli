@@ -703,6 +703,25 @@ export const en: TranslationKeys = {
 				usage:
 					'Usage: /deepresearch <prompt>\nExample: /deepresearch Compare the architectures of OpenAI Deep Research and Gemini Deep Research',
 			},
+			// Loop command messages
+			loop: {
+				usage:
+					'Usage: /loop 5m <prompt> | /loop 8h30m <prompt> | /loop <prompt> every 2 hours | /loop list | /loop cancel <id> | /loop tasks',
+				openingTaskManager: 'Opening task manager...',
+				relatedLoopTasks: 'Related loop tasks:',
+				noActiveLoops:
+					'No active loops. Create one with /loop 5m <prompt> or /loop <prompt> every 2 hours.',
+				loopNotFound: 'Loop not found: {id}',
+				cancelled: 'Cancelled loop {id} (every {interval})',
+				created: 'Loop created: {id}',
+				scheduleEvery: 'Schedule: every {interval}',
+				promptLabel: 'Prompt: {prompt}',
+				nextRun: 'Next run: {time}',
+				sessionScopedNote:
+					'Session-scoped only: loop jobs stop when Snow CLI exits.',
+				usageHint:
+					'Use /loop list to inspect jobs or /loop cancel <id> to stop one.',
+			},
 		},
 	},
 	fileList: {
@@ -1624,6 +1643,7 @@ export const en: TranslationKeys = {
 		renamePrompt: 'Rename Session',
 		renaming: 'Renaming...',
 		renamePlaceholder: 'Enter new title',
+		confirmDelete: 'Press D again within 1s to confirm delete ({count})',
 	},
 	mcpInfoPanel: {
 		title: 'MCP Services',
@@ -1656,6 +1676,18 @@ export const en: TranslationKeys = {
 		toolScopeProject: '[Project]',
 		mcpSourceProject: ' [Project]',
 		mcpSourceGlobal: ' [Global]',
+	},
+	skillsListPanel: {
+		title: 'Skills',
+		loading: 'Loading skills...',
+		error: 'Error: {message}',
+		noSkills: 'No skills available',
+		locationProject: '(Project)',
+		locationGlobal: '(Global)',
+		statusDisabled: '(Disabled)',
+		navigationHint: '↑↓ Navigate • Tab/Space/Enter Toggle • ESC Close',
+		moreAbove: '↑ {count} more above',
+		moreBelow: '↓ {count} more below',
 	},
 	mcpConfigScreen: {
 		title: 'MCP Config - Select scope to edit',
