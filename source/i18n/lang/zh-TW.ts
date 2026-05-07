@@ -703,7 +703,7 @@ export const zhTW: TranslationKeys = {
 		connectSuccess: '已連線至 {label}',
 		connectError: '連線失敗：{error}',
 		unmatchedIDEs:
-			'以下 {count} 個 IDE 工作區與目前目錄不相符，選擇後將自動切換工作目錄：',
+			'上述 {count} 個 IDE 的工作區與目前目錄不相符，選擇後將自動切換工作目錄。',
 		unmatchedHeader: '— 切換工作目錄 —',
 		switchWorkdirMark: ' (切換工作目錄)',
 		switchWorkdirError: '切換工作目錄失敗：{error}',

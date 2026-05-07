@@ -702,7 +702,7 @@ export const zh: TranslationKeys = {
 		connectSuccess: '已连接到 {label}',
 		connectError: '连接失败：{error}',
 		unmatchedIDEs:
-			'以下 {count} 个 IDE 工作区与当前目录不匹配，选择后将自动切换工作目录：',
+			'上述 {count} 个 IDE 的工作区与当前目录不匹配，选择后将自动切换工作目录。',
 		unmatchedHeader: '— 切换工作目录 —',
 		switchWorkdirMark: ' (切换工作目录)',
 		switchWorkdirError: '切换工作目录失败：{error}',
