@@ -747,7 +747,10 @@ export const en: TranslationKeys = {
 		connectSuccess: 'Connected to {label}',
 		connectError: 'Failed to connect: {error}',
 		unmatchedIDEs:
-			'Found {count} other running IDE(s). However, their workspace/project directories do not match the current cwd.',
+			'The following {count} IDE(s) have workspaces that do not match the current directory. Selecting one will switch the working directory:',
+		unmatchedHeader: '— Switch working directory —',
+		switchWorkdirMark: ' (switch cwd)',
+		switchWorkdirError: 'Failed to switch working directory: {error}',
 	},
 	permissionsPanel: {
 		title: 'Permissions',

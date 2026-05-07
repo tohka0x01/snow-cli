@@ -147,6 +147,7 @@ type ChatFooterProps = {
 		status: 'connected' | 'disconnected',
 		message?: string,
 	) => void;
+	onIdeWorkingDirectoryChanged?: (newCwd: string) => void;
 
 	// Skills list panel props
 	showSkillsListPanel: boolean;
@@ -432,6 +433,7 @@ const ChatFooter = React.memo(function ChatFooter(props: ChatFooterProps) {
 					visible={props.showIdeSelectPanel}
 					onClose={() => props.setShowIdeSelectPanel(false)}
 					onConnectionChange={props.onIdeConnectionChange}
+					onWorkingDirectoryChanged={props.onIdeWorkingDirectoryChanged}
 				/>
 			)}
 

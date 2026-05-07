@@ -33,6 +33,7 @@ import {useChatScreenModes} from './chatScreen/useChatScreenModes.js';
 import {useChatScreenSessionLifecycle} from './chatScreen/useChatScreenSessionLifecycle.js';
 import {useCodebaseIndexing} from './chatScreen/useCodebaseIndexing.js';
 import {useTerminalTitle} from '../../hooks/ui/useTerminalTitle.js';
+import {resetTerminal} from '../../utils/execution/terminal.js';
 
 const MIN_TERMINAL_HEIGHT = 10;
 
@@ -555,6 +556,15 @@ export default function ChatScreen({
 							};
 							setMessages(prev => [...prev, commandMessage]);
 						}
+					}}
+					onIdeWorkingDirectoryChanged={() => {
+						// Working directory changed via process.chdir().
+						// ChatHeader lives inside <Static>, so we must:
+						// 1. Reset the terminal to clear stale Static output (incl. old cwd line).
+						// 2. Bump remountKey to force <Static> to remount; the next render
+						//    will pick up the new process.cwd() in ChatHeader.
+						resetTerminal();
+						setRemountKey(prev => prev + 1);
 					}}
 					btwPrompt={btwPrompt}
 					onBtwClose={() => setBtwPrompt(null)}

@@ -56,8 +56,11 @@ jobs:
 
             ### What's New
 
-            - Add the /models command for quick model switching
-
+            - Add the /deepresearch command to conduct in-depth research and generate research reports, which are stored in the .snow/deepresearch/ folder at the root directory of the working directory
+            - Add full coverage functionality for ROLE.md, access the ROLE list using the /role -l command, and use the shortcut key R to override the built-in system prompts of Snow CLI
+            - Add the feature to switch between working directories, enhancing single-window flexibility, and use the /ide command to switch working directories
+            - The skills panel has been migrated from the original mcp panel to a new independent panel management, access the skills list using the /skills -l command
+            
             ### Installation
             ```bash
             npm install -g snow-ai

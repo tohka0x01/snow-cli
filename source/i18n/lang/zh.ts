@@ -702,7 +702,10 @@ export const zh: TranslationKeys = {
 		connectSuccess: '已连接到 {label}',
 		connectError: '连接失败：{error}',
 		unmatchedIDEs:
-			'发现 {count} 个其他运行中的 IDE，但其工作区/项目目录与当前工作目录不匹配。',
+			'以下 {count} 个 IDE 工作区与当前目录不匹配，选择后将自动切换工作目录：',
+		unmatchedHeader: '— 切换工作目录 —',
+		switchWorkdirMark: ' (切换工作目录)',
+		switchWorkdirError: '切换工作目录失败：{error}',
 	},
 	permissionsPanel: {
 		title: '权限',

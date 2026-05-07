@@ -692,6 +692,9 @@ export type TranslationKeys = {
 		connectSuccess: string;
 		connectError: string;
 		unmatchedIDEs: string;
+		unmatchedHeader: string;
+		switchWorkdirMark: string;
+		switchWorkdirError: string;
 	};
 	// Profile Panel
 	profilePanel: {
