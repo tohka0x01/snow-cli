@@ -28,6 +28,17 @@ import kotlin.math.min
 private const val MAX_DIFF_CHARS = 120_000
 private const val API_MAX_RETRIES = 5
 private const val API_RETRY_BASE_DELAY_MS = 1_000L
+private val RESTRICTED_HEADERS = setOf(
+    "connection",
+    "content-length",
+    "date",
+    "expect",
+    "from",
+    "host",
+    "upgrade",
+    "via",
+    "warning",
+)
 
 @Service(Service.Level.PROJECT)
 class SnowCommitMessageGenerationService(private val project: Project) {
@@ -310,6 +321,10 @@ class SnowCommitMessageGenerationService(private val project: Project) {
             .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
 
         buildHeaders(config, provider).forEach { (key, value) ->
+            if (isRestrictedHeader(key)) {
+                logger.warn("Skip restricted header: $key")
+                return@forEach
+            }
             requestBuilder.header(key, value)
         }
 
@@ -338,11 +353,22 @@ class SnowCommitMessageGenerationService(private val project: Project) {
         if (provider == "gemini" && config.apiKey.isNotBlank()) {
             headers["x-goog-api-key"] = config.apiKey
         }
-        if (provider == "anthropic" && config.apiKey.isNotBlank()) {
-            headers["x-api-key"] = config.apiKey
+        if (provider == "anthropic") {
+            if (config.apiKey.isNotBlank()) {
+                headers["x-api-key"] = config.apiKey
+            }
+            if (headers.keys.none { it.equals("anthropic-version", ignoreCase = true) }) {
+                headers["anthropic-version"] = "2023-06-01"
+            }
         }
         return headers
     }
+
+    private fun isRestrictedHeader(name: String): Boolean {
+        val lower = name.lowercase()
+        return lower in RESTRICTED_HEADERS
+    }
+
 
     private fun loadActiveSnowConfig(): SnowApiConfig {
         val configDir = File(System.getProperty("user.home"), ".snow")
