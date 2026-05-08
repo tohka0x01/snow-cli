@@ -1061,6 +1061,7 @@ export const en: TranslationKeys = {
 		assistantMessage: 'Assistant',
 		commandMessage: 'Command',
 		discontinuedMessage: '└─ user discontinue',
+		aiCompletionTimeMessage: '└─ AI finished at {time}',
 		// File operations
 		fileCreated: 'Created',
 		fileModified: 'Modified',

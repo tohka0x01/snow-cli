@@ -11,6 +11,26 @@ function cleanThinkingContent(content: string): string {
 	return content.replace(/\s*<\/?think(?:ing)?>\s*/gi, '').trim();
 }
 
+function isValidTimestamp(timestamp: unknown): timestamp is number {
+	return typeof timestamp === 'number' && Number.isFinite(timestamp);
+}
+
+function appendAiCompletionTimeMessage(
+	uiMessages: Message[],
+	timestamp: unknown,
+): void {
+	if (!isValidTimestamp(timestamp)) {
+		return;
+	}
+
+	uiMessages.push({
+		role: 'assistant',
+		content: '',
+		streaming: false,
+		aiCompletionTime: new Date(timestamp),
+	});
+}
+
 /**
  * Convert API format session messages to UI format messages
  * Process messages in order to maintain correct sequence
@@ -269,7 +289,10 @@ export function convertSessionMessagesToUI(
 									contextStartLine: resultData.contextStartLine,
 								},
 							};
-						} else if (resultData.results && Array.isArray(resultData.results)) {
+						} else if (
+							resultData.results &&
+							Array.isArray(resultData.results)
+						) {
 							fileToolData = {
 								name: toolName,
 								arguments: {
@@ -462,10 +485,8 @@ export function convertSessionMessagesToUI(
 						) {
 							if (
 								(msg as any).editDiffData &&
-								(
-									typeof (msg as any).editDiffData.oldContent === 'string' ||
-									Array.isArray((msg as any).editDiffData.batchResults)
-								)
+								(typeof (msg as any).editDiffData.oldContent === 'string' ||
+									Array.isArray((msg as any).editDiffData.batchResults))
 							) {
 								editDiffData = (msg as any).editDiffData;
 								toolArgs = {...toolArgs, ...(msg as any).editDiffData};
@@ -595,6 +616,11 @@ export function convertSessionMessagesToUI(
 				thinking: extractThinkingFromMessage(msg),
 				editorContext: msg.role === 'user' ? msg.editorContext : undefined,
 			});
+
+			if (msg.role === 'assistant') {
+				appendAiCompletionTimeMessage(uiMessages, (msg as any).timestamp);
+			}
+
 			continue;
 		}
 	}

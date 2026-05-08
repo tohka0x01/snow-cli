@@ -1008,6 +1008,7 @@ export const zhTW: TranslationKeys = {
 		assistantMessage: '助手',
 		commandMessage: '命令',
 		discontinuedMessage: '└─ 使用者中斷',
+		aiCompletionTimeMessage: '└─ AI 結束時間：{time}',
 		// File operations
 		fileCreated: '已建立',
 		fileModified: '已修改',

@@ -137,6 +137,35 @@ export default function MessageRenderer({
 			.map((line, index) => `${index === 0 ? '└─ ' : '   '}${line || ' '}`);
 	};
 
+	const formatAiCompletionTime = (value: Date | string): string => {
+		const date = value instanceof Date ? value : new Date(value);
+
+		if (Number.isNaN(date.getTime())) {
+			return String(value);
+		}
+
+		return date.toLocaleTimeString(undefined, {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+		});
+	};
+
+	if (message.aiCompletionTime) {
+		const completionTime = formatAiCompletionTime(message.aiCompletionTime);
+
+		return (
+			<Box paddingX={1} width={terminalWidth} marginBottom={1}>
+				<Text color={theme.colors.menuSecondary} dimColor>
+					{t.chatScreen.aiCompletionTimeMessage.replace(
+						'{time}',
+						completionTime,
+					)}
+				</Text>
+			</Box>
+		);
+	}
+
 	// Determine tool message type and color
 	let toolStatusColor: string = 'cyan';
 

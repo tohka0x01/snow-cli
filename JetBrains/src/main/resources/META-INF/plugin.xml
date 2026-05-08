@@ -56,6 +56,13 @@
             <keyboard-shortcut first-keystroke="control alt S" keymap="$default"/>
         </action>
 
+        <action id="snow.GenerateCommitMessage"
+                class="com.snow.plugin.actions.GenerateCommitMessageAction"
+                text="Generate Commit Message"
+                description="Generate a commit message with Snow CLI AI">
+            <add-to-group group-id="Vcs.MessageActionGroup" anchor="first"/>
+        </action>
+
         <action id="snow.SendToSnowCLI"
                 class="com.snow.plugin.actions.SendToSnowCLIAction"
                 text="Send to Snow CLI"

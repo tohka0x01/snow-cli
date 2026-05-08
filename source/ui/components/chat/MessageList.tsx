@@ -9,6 +9,7 @@ export interface Message {
 	content: string;
 	streaming?: boolean;
 	discontinued?: boolean;
+	aiCompletionTime?: Date | string;
 	messageStatus?: 'pending' | 'success' | 'error';
 	commandName?: string;
 	hideCommandName?: boolean; // Don't show command name prefix for output chunks
@@ -105,6 +106,20 @@ function formatCommandResultLines(content: string): string[] {
 		.map((line, index) => `${index === 0 ? '└─ ' : '   '}${line || ' '}`);
 }
 
+function formatAiCompletionTime(value: Date | string): string {
+	const date = value instanceof Date ? value : new Date(value);
+
+	if (Number.isNaN(date.getTime())) {
+		return String(value);
+	}
+
+	return date.toLocaleTimeString(undefined, {
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit',
+	});
+}
+
 const MessageList = memo(
 	({messages, animationFrame, maxMessages = 6}: Props) => {
 		const {t} = useI18n();
@@ -115,6 +130,23 @@ const MessageList = memo(
 		return (
 			<Box flexDirection="column" overflow="hidden">
 				{messages.slice(-maxMessages).map((message, index) => {
+					if (message.aiCompletionTime) {
+						const completionTime = formatAiCompletionTime(
+							message.aiCompletionTime,
+						);
+
+						return (
+							<Box key={index}>
+								<Text color="gray" dimColor>
+									{t.chatScreen.aiCompletionTimeMessage.replace(
+										'{time}',
+										completionTime,
+									)}
+								</Text>
+							</Box>
+						);
+					}
+
 					const iconColor =
 						message.role === 'user'
 							? message.subAgentDirected

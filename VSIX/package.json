@@ -2,7 +2,7 @@
 	"name": "snow-cli",
 	"displayName": "Snow CLI",
 	"description": "Snow AI CLI with ACE Code Search - Intelligent code navigation and search powered by AI",
-	"version": "0.4.21",
+	"version": "0.4.22",
 	"publisher": "mufasa",
 	"repository": {
 		"type": "git",
@@ -171,6 +171,24 @@
 				"command": "snow-cli.toggleFileAnnotations",
 				"title": "Snow CLI: Toggle File Annotations",
 				"icon": "$(list-flat)"
+			},
+			{
+				"command": "snow-cli.generateCommitMessage",
+				"title": "Snow CLI: Generate Commit Message",
+				"icon": {
+					"light": "./snow.png",
+					"dark": "./snow.png"
+				}
+			},
+			{
+				"command": "snow-cli.generateCommitMessageWithRequirements",
+				"title": "Snow CLI: Generate Commit Message with Requirements",
+				"icon": "$(comment)"
+			},
+			{
+				"command": "snow-cli.cancelCommitMessageGeneration",
+				"title": "Snow CLI: Stop Generating Commit Message",
+				"icon": "$(debug-stop)"
 			}
 		],
 		"submenus": [
@@ -188,6 +206,24 @@
 			}
 		],
 		"menus": {
+			"scm/title": [
+				{
+					"command": "snow-cli.generateCommitMessage",
+					"alt": "snow-cli.generateCommitMessageWithRequirements",
+					"when": "!snow-cli.commitMessageGenerating",
+					"group": "navigation@1"
+				},
+				{
+					"command": "snow-cli.generateCommitMessageWithRequirements",
+					"when": "!snow-cli.commitMessageGenerating",
+					"group": "snow@1"
+				},
+				{
+					"command": "snow-cli.cancelCommitMessageGeneration",
+					"when": "snow-cli.commitMessageGenerating",
+					"group": "navigation@1"
+				}
+			],
 			"editor/title": [
 				{
 					"command": "snow-cli.openTerminal",

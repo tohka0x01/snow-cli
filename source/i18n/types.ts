@@ -998,6 +998,7 @@ export type TranslationKeys = {
 		assistantMessage: string;
 		commandMessage: string;
 		discontinuedMessage: string;
+		aiCompletionTimeMessage: string;
 		// File operations
 		fileCreated: string;
 		fileModified: string;

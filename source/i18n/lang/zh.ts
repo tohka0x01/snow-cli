@@ -1007,6 +1007,7 @@ export const zh: TranslationKeys = {
 		assistantMessage: '助手',
 		commandMessage: '命令',
 		discontinuedMessage: '└─ 用户中断',
+		aiCompletionTimeMessage: '└─ AI 结束时间：{time}',
 		// File operations
 		fileCreated: '已创建',
 		fileModified: '已修改',

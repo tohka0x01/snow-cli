@@ -14,6 +14,7 @@ import {
 	hasExplicitSnowTerminalProxyUrl,
 } from './terminalProxy';
 import {registerGitBlame} from './gitBlameProvider';
+import {registerCommitMessageCommands} from './commitMessageGenerator';
 
 /**
  * Snow CLI Extension
@@ -242,6 +243,12 @@ export function activate(context: vscode.ExtensionContext) {
 		registerGitBlame(context);
 	} catch (err) {
 		console.error('Failed to register Git Blame provider:', err);
+	}
+
+	try {
+		registerCommitMessageCommands(context);
+	} catch (err) {
+		console.error('Failed to register commit message generator:', err);
 	}
 
 	// 4. 注册命令

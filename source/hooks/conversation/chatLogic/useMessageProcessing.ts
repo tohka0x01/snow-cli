@@ -98,22 +98,33 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 		setBashSensitiveCommand,
 	} = props;
 
-	const processMessageRef =
-		useRef<
-			| ((
-					message: string,
-					images?: Array<{data: string; mimeType: string}>,
-					useBasicModel?: boolean,
-					hideUserMessage?: boolean,
-			  ) => Promise<void>)
-			| null
-		>(null);
+	const processMessageRef = useRef<
+		| ((
+				message: string,
+				images?: Array<{data: string; mimeType: string}>,
+				useBasicModel?: boolean,
+				hideUserMessage?: boolean,
+		  ) => Promise<void>)
+		| null
+	>(null);
 
 	const yoloModeRef = useRef(yoloMode);
 
 	useEffect(() => {
 		yoloModeRef.current = yoloMode;
 	}, [yoloMode]);
+
+	const appendAiCompletionTimeMessage = () => {
+		setMessages(prev => [
+			...prev,
+			{
+				role: 'assistant',
+				content: '',
+				streaming: false,
+				aiCompletionTime: new Date(),
+			},
+		]);
+	};
 
 	const processMessage = async (
 		message: string,
@@ -374,6 +385,8 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 				streamingState.setIsStopping(false);
 			}
 
+			appendAiCompletionTimeMessage();
+
 			streamingState.setIsStreaming(false);
 			streamingState.setAbortController(null);
 			streamingState.setStreamTokenCount(0);
@@ -418,9 +431,9 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 						messageWithoutTargets,
 					);
 					if (success) {
-						const agentInfo = runningSubAgentTracker.getRunningAgents().find(
-							a => a.instanceId === target.instanceId,
-						);
+						const agentInfo = runningSubAgentTracker
+							.getRunningAgents()
+							.find(a => a.instanceId === target.instanceId);
 						rawPrompt = agentInfo?.prompt || '';
 					}
 				}
@@ -475,7 +488,11 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 				'onUserMessage',
 				{message, imageCount: images?.length || 0, source: 'normal'},
 			);
-			const interpreted = interpretHookResult('onUserMessage', hookResult, message);
+			const interpreted = interpretHookResult(
+				'onUserMessage',
+				hookResult,
+				message,
+			);
 
 			if (interpreted.action === 'block' && interpreted.errorDetails) {
 				setMessages(prev => [
@@ -614,9 +631,17 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 			const allImages = messagesToProcess.flatMap(m => m.images || []);
 			const hookResult = await unifiedHooksExecutor.executeHooks(
 				'onUserMessage',
-				{message: combinedMessage, imageCount: allImages.length, source: 'pending'},
+				{
+					message: combinedMessage,
+					imageCount: allImages.length,
+					source: 'pending',
+				},
 			);
-			const interpreted = interpretHookResult('onUserMessage', hookResult, combinedMessage);
+			const interpreted = interpretHookResult(
+				'onUserMessage',
+				hookResult,
+				combinedMessage,
+			);
 
 			if (interpreted.action === 'block' && interpreted.errorDetails) {
 				setMessages(prev => [
@@ -800,6 +825,8 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 
 				streamingState.setIsStopping(false);
 			}
+
+			appendAiCompletionTimeMessage();
 
 			streamingState.setIsStreaming(false);
 			streamingState.setAbortController(null);
