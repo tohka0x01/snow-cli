@@ -53,17 +53,15 @@ export function arrowKeysHandler(ctx: HandlerContext): boolean {
 		const text = buffer.getFullText();
 		const cursorPos = buffer.getCursorPosition();
 		const isEmpty = text.trim() === '';
-		const hasMultipleVisualLines = buffer.viewportVisualLines.length > 1;
 
-		// For multi-line content, always prioritize cursor movement over history navigation.
-		// Only use history navigation when the input is single-line (or empty) and cursor is at position 0.
-		if (!hasMultipleVisualLines && (isEmpty || cursorPos === 0)) {
+		// Allow history navigation whenever the cursor is at the very beginning
+		// of the input (position 0). For multi-line content this means the cursor
+		// is on the first visual line at column 0 — pressing Up there cannot move
+		// further up, so we fall through to history navigation instead.
+		if (isEmpty || cursorPos === 0) {
 			const navigated = navigateHistoryUp();
 			if (navigated) {
-				updateFilePickerState(
-					buffer.getFullText(),
-					buffer.getCursorPosition(),
-				);
+				updateFilePickerState(buffer.getFullText(), buffer.getCursorPosition());
 				updateAgentPickerState(
 					buffer.getFullText(),
 					buffer.getCursorPosition(),
@@ -99,22 +97,16 @@ export function arrowKeysHandler(ctx: HandlerContext): boolean {
 		const text = buffer.getFullText();
 		const cursorPos = buffer.getCursorPosition();
 		const isEmpty = text.trim() === '';
-		const hasMultipleVisualLines = buffer.viewportVisualLines.length > 1;
 
-		// For multi-line content, always prioritize cursor movement over history navigation.
-		// Only use history navigation when the input is single-line (or empty),
-		// cursor is at the end, and we're already in history mode.
-		if (
-			!hasMultipleVisualLines &&
-			(isEmpty || cursorPos === text.length) &&
-			currentHistoryIndex !== -1
-		) {
+		// Allow history navigation whenever the cursor is at the very end of the
+		// input (position text.length). For multi-line content this means the
+		// cursor is on the last visual line at the final column — pressing Down
+		// there cannot move further down, so we fall through to history navigation
+		// (only when already in history mode, matching the original behavior).
+		if ((isEmpty || cursorPos === text.length) && currentHistoryIndex !== -1) {
 			const navigated = navigateHistoryDown();
 			if (navigated) {
-				updateFilePickerState(
-					buffer.getFullText(),
-					buffer.getCursorPosition(),
-				);
+				updateFilePickerState(buffer.getFullText(), buffer.getCursorPosition());
 				updateAgentPickerState(
 					buffer.getFullText(),
 					buffer.getCursorPosition(),
