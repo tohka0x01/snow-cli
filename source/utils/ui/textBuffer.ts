@@ -151,8 +151,7 @@ export class TextBuffer {
 			const before = this.content.substring(pos, entry.idx);
 			result += this.expandNonPastePlaceholders(before);
 
-			const lineCount =
-				(entry.ph.content.match(/\n/g) || []).length + 1;
+			const lineCount = (entry.ph.content.match(/\n/g) || []).length + 1;
 			// Ensure marker starts on its own line
 			if (result.length > 0 && !result.endsWith('\n')) result += '\n';
 			result += `# Paste: ${lineCount} lines\n`;
@@ -166,9 +165,7 @@ export class TextBuffer {
 
 		// Append remaining text after the last placeholder
 		if (pos < this.content.length) {
-			result += this.expandNonPastePlaceholders(
-				this.content.substring(pos),
-			);
+			result += this.expandNonPastePlaceholders(this.content.substring(pos));
 		}
 
 		return result;
@@ -431,6 +428,21 @@ export class TextBuffer {
 			return;
 		}
 
+		// 如果光标紧邻占位符的尾部，则整体删除该占位符（一次按键删整个标签）
+		const phAtEnd = this.findPlaceholderEndingAt(this.cursorIndex);
+		if (phAtEnd) {
+			const before = cpSlice(this.content, 0, phAtEnd.cpStart);
+			const after = cpSlice(this.content, phAtEnd.cpStart + phAtEnd.phCpLen);
+			this.content = before + after;
+			this.cursorIndex = phAtEnd.cpStart;
+			this.removePlaceholderRecord(phAtEnd.id);
+			this.lastTextPlaceholderId = null;
+			this.lastTextPlaceholderAt = 0;
+			this.recalculateVisualState();
+			this.scheduleUpdate();
+			return;
+		}
+
 		const before = cpSlice(this.content, 0, this.cursorIndex - 1);
 		const after = cpSlice(this.content, this.cursorIndex);
 		this.content = before + after;
@@ -444,11 +456,108 @@ export class TextBuffer {
 			return;
 		}
 
+		// 如果光标位于占位符首部，则整体删除该占位符
+		const phAtStart = this.findPlaceholderStartingAt(this.cursorIndex);
+		if (phAtStart) {
+			const before = cpSlice(this.content, 0, phAtStart.cpStart);
+			const after = cpSlice(
+				this.content,
+				phAtStart.cpStart + phAtStart.phCpLen,
+			);
+			this.content = before + after;
+			this.cursorIndex = phAtStart.cpStart;
+			this.removePlaceholderRecord(phAtStart.id);
+			this.lastTextPlaceholderId = null;
+			this.lastTextPlaceholderAt = 0;
+			this.recalculateVisualState();
+			this.scheduleUpdate();
+			return;
+		}
+
 		const before = cpSlice(this.content, 0, this.cursorIndex);
 		const after = cpSlice(this.content, this.cursorIndex + 1);
 		this.content = before + after;
 		this.recalculateVisualState();
 		this.scheduleUpdate();
+	}
+
+	/**
+	 * 查找以 cursorCp 结尾的占位符（包括 tempPastingPlaceholder）。
+	 * 返回占位符的 id（tempPastingPlaceholder 返回特殊标识）和 cp 位置。
+	 */
+	private findPlaceholderEndingAt(
+		cursorCp: number,
+	): {id: string; cpStart: number; phCpLen: number} | null {
+		const boundaries = this.collectPlaceholderBoundaries();
+		for (const b of boundaries) {
+			if (cursorCp === b.cpStart + b.phCpLen) {
+				return b;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 查找以 cursorCp 开头的占位符。
+	 */
+	private findPlaceholderStartingAt(
+		cursorCp: number,
+	): {id: string; cpStart: number; phCpLen: number} | null {
+		const boundaries = this.collectPlaceholderBoundaries();
+		for (const b of boundaries) {
+			if (cursorCp === b.cpStart) {
+				return b;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 收集所有当前 content 中可见的占位符的 cp 边界（含临时 Pasting 占位符）。
+	 * 在展开视图下，文本类型占位符已被替换为原始内容、不在 storage 中，因此不会命中。
+	 */
+	private collectPlaceholderBoundaries(): Array<{
+		id: string;
+		cpStart: number;
+		phCpLen: number;
+	}> {
+		const result: Array<{id: string; cpStart: number; phCpLen: number}> = [];
+
+		for (const ph of this.placeholderStorage.values()) {
+			if (!ph.placeholder) continue;
+			const strIdx = this.content.indexOf(ph.placeholder);
+			if (strIdx === -1) continue;
+			result.push({
+				id: ph.id,
+				cpStart: cpLen(this.content.substring(0, strIdx)),
+				phCpLen: cpLen(ph.placeholder),
+			});
+		}
+
+		if (this.tempPastingPlaceholder) {
+			const strIdx = this.content.indexOf(this.tempPastingPlaceholder);
+			if (strIdx !== -1) {
+				result.push({
+					id: '__pasting__',
+					cpStart: cpLen(this.content.substring(0, strIdx)),
+					phCpLen: cpLen(this.tempPastingPlaceholder),
+				});
+			}
+		}
+
+		result.sort((a, b) => a.cpStart - b.cpStart);
+		return result;
+	}
+
+	/**
+	 * 按 id 移除占位符记录。
+	 */
+	private removePlaceholderRecord(id: string): void {
+		if (id === '__pasting__') {
+			this.tempPastingPlaceholder = null;
+			return;
+		}
+		this.placeholderStorage.delete(id);
 	}
 
 	moveLeft(): void {
@@ -581,9 +690,7 @@ export class TextBuffer {
 
 			this._expandedSegments = this.buildExpandedSegments();
 			const expandedText = this.getFullText();
-			const expandedCursor = this.mapCursorToExpandedIndex(
-				this.cursorIndex,
-			);
+			const expandedCursor = this.mapCursorToExpandedIndex(this.cursorIndex);
 
 			for (const [id, ph] of this.placeholderStorage.entries()) {
 				if (ph.type === 'text') {
@@ -790,20 +897,19 @@ export class TextBuffer {
 					oldCursor >= region.start &&
 					oldCursor <= region.end
 				) {
-					newCursor =
-						cpLen(newContent) + (oldCursor - region.start);
+					newCursor = cpLen(newContent) + (oldCursor - region.start);
 					cursorMapped = true;
 				}
 				newContent += regionText;
 			} else if (regionText.length > 0) {
-				const lineCount =
-					(regionText.match(/\n/g) || []).length + 1;
-				const shouldFold =
-					regionText.length >= 400 || lineCount >= 12;
+				const lineCount = (regionText.match(/\n/g) || []).length + 1;
+				const shouldFold = regionText.length >= 400 || lineCount >= 12;
 
 				if (shouldFold) {
 					this.textPlaceholderCounter++;
-					const pasteId = `paste_refold_${Date.now()}_${this.textPlaceholderCounter}`;
+					const pasteId = `paste_refold_${Date.now()}_${
+						this.textPlaceholderCounter
+					}`;
 					const placeholderText = `[Paste ${lineCount} lines #${this.textPlaceholderCounter}] `;
 
 					this.placeholderStorage.set(pasteId, {
@@ -820,8 +926,7 @@ export class TextBuffer {
 						oldCursor >= region.start &&
 						oldCursor <= region.end
 					) {
-						newCursor =
-							cpLen(newContent) + cpLen(placeholderText);
+						newCursor = cpLen(newContent) + cpLen(placeholderText);
 						cursorMapped = true;
 					}
 					newContent += placeholderText;
@@ -831,9 +936,7 @@ export class TextBuffer {
 						oldCursor >= region.start &&
 						oldCursor <= region.end
 					) {
-						newCursor =
-							cpLen(newContent) +
-							(oldCursor - region.start);
+						newCursor = cpLen(newContent) + (oldCursor - region.start);
 						cursorMapped = true;
 					}
 					newContent += regionText;
@@ -872,21 +975,20 @@ export class TextBuffer {
 					oldCursor >= expandedPos &&
 					oldCursor <= expandedPos + seg.text.length
 				) {
-					newCursor =
-						cpLen(newContent) + (oldCursor - expandedPos);
+					newCursor = cpLen(newContent) + (oldCursor - expandedPos);
 					cursorMapped = true;
 				}
 				newContent += seg.text;
 				expandedPos += seg.text.length;
 			} else {
-				const lineCount =
-					(seg.text.match(/\n/g) || []).length + 1;
-				const shouldFold =
-					seg.text.length >= 400 || lineCount >= 12;
+				const lineCount = (seg.text.match(/\n/g) || []).length + 1;
+				const shouldFold = seg.text.length >= 400 || lineCount >= 12;
 
 				if (shouldFold) {
 					this.textPlaceholderCounter++;
-					const pasteId = `paste_restore_${Date.now()}_${this.textPlaceholderCounter}`;
+					const pasteId = `paste_restore_${Date.now()}_${
+						this.textPlaceholderCounter
+					}`;
 					const placeholderText =
 						seg.originalPlaceholder ||
 						`[Paste ${lineCount} lines #${this.textPlaceholderCounter}] `;
@@ -905,8 +1007,7 @@ export class TextBuffer {
 						oldCursor >= expandedPos &&
 						oldCursor <= expandedPos + seg.text.length
 					) {
-						newCursor =
-							cpLen(newContent) + cpLen(placeholderText);
+						newCursor = cpLen(newContent) + cpLen(placeholderText);
 						cursorMapped = true;
 					}
 					newContent += placeholderText;
@@ -916,9 +1017,7 @@ export class TextBuffer {
 						oldCursor >= expandedPos &&
 						oldCursor <= expandedPos + seg.text.length
 					) {
-						newCursor =
-							cpLen(newContent) +
-							(oldCursor - expandedPos);
+						newCursor = cpLen(newContent) + (oldCursor - expandedPos);
 						cursorMapped = true;
 					}
 					newContent += seg.text;
@@ -1044,9 +1143,7 @@ export class TextBuffer {
 	private recalculateVisualState(): void {
 		this.clampCursorIndex();
 
-		this._displayText = this._expandedView
-			? this.getFullText()
-			: this.content;
+		this._displayText = this._expandedView ? this.getFullText() : this.content;
 
 		const width = this.viewport.width;
 		const effectiveWidth =
@@ -1089,8 +1186,7 @@ export class TextBuffer {
 		const displayCursorIdx = this._expandedView
 			? this.mapCursorToExpandedIndex(this.cursorIndex)
 			: this.cursorIndex;
-		this.visualCursorPos =
-			this.computeVisualCursorFromIndex(displayCursorIdx);
+		this.visualCursorPos = this.computeVisualCursorFromIndex(displayCursorIdx);
 		this.preferredVisualCol = this.visualCursorPos[1];
 	}
 
