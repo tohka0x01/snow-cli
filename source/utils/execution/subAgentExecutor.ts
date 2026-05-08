@@ -5,7 +5,10 @@ import {unifiedHooksExecutor} from './unifiedHooksExecutor.js';
 import {interpretHookResult} from './hookResultInterpreter.js';
 import {runningSubAgentTracker} from './runningSubAgentTracker.js';
 import {resolveAgent, filterAllowedTools} from './subAgentResolver.js';
-import {injectBuiltinTools, buildInitialMessages} from './subAgentBuiltinTools.js';
+import {
+	injectBuiltinTools,
+	buildInitialMessages,
+} from './subAgentBuiltinTools.js';
 import {
 	createApiStream,
 	processStreamEvents,
@@ -57,6 +60,7 @@ export async function executeSubAgent(
 	instanceId?: string,
 	spawnDepth: number = 0,
 ): Promise<SubAgentResult> {
+	let ctx: SubAgentExecutionContext | undefined;
 	try {
 		// 1. Resolve agent
 		const {agent, error: resolveError} = await resolveAgent(agentId);
@@ -85,7 +89,7 @@ export async function executeSubAgent(
 		);
 
 		// 4. Build execution context
-		const ctx: SubAgentExecutionContext = {
+		ctx = {
 			agent,
 			instanceId,
 			messages,
@@ -139,8 +143,11 @@ export async function executeSubAgent(
 
 			// Process stream events
 			ctx.latestTotalTokens = 0;
-			const {toolCalls, hasError, errorMessage} =
-				await processStreamEvents(ctx, stream, config);
+			const {toolCalls, hasError, errorMessage} = await processStreamEvents(
+				ctx,
+				stream,
+				config,
+			);
 
 			if (hasError) {
 				return {
@@ -184,19 +191,14 @@ export async function executeSubAgent(
 				remaining,
 				executeSubAgent,
 			).remainingToolCalls;
-			remaining = (
-				await interceptAskUser(ctx, remaining)
-			).remainingToolCalls;
+			remaining = (await interceptAskUser(ctx, remaining)).remainingToolCalls;
 			if (remaining.length === 0) continue;
 
 			// Approve + execute MCP tools
 			const approval = await checkAndApproveTools(ctx, remaining);
 			if (approval.shouldContinue) continue;
 
-			const execResult = await executeMcpTools(
-				ctx,
-				approval.approvedToolCalls,
-			);
+			const execResult = await executeMcpTools(ctx, approval.approvedToolCalls);
 			if (execResult.aborted && execResult.abortResult) {
 				return execResult.abortResult;
 			}
@@ -221,6 +223,17 @@ export async function executeSubAgent(
 			result: '',
 			error: error instanceof Error ? error.message : 'Unknown error',
 		};
+	} finally {
+		// Always emit a final 'done' so the UI handler can clear stream entries.
+		// handleDone is idempotent (clearStreamState only removes existing entries),
+		// so emitting an extra 'done' on already-cleaned-up paths is safe.
+		if (ctx) {
+			try {
+				emitSubAgentMessage(ctx, {type: 'done'});
+			} catch {
+				/* noop */
+			}
+		}
 	}
 }
 
@@ -244,8 +257,9 @@ function injectPendingMessages(ctx: SubAgentExecutionContext): void {
 		});
 	}
 
-	const interAgentMessages =
-		runningSubAgentTracker.dequeueInterAgentMessages(ctx.instanceId);
+	const interAgentMessages = runningSubAgentTracker.dequeueInterAgentMessages(
+		ctx.instanceId,
+	);
 	for (const iaMsg of interAgentMessages) {
 		ctx.messages.push({
 			role: 'user',
@@ -302,10 +316,7 @@ async function handleSpawnedChildren(
 	}
 
 	if (runningChildren.length > 0) {
-		await runningSubAgentTracker.waitForSpawnedAgents(
-			300_000,
-			ctx.abortSignal,
-		);
+		await runningSubAgentTracker.waitForSpawnedAgents(300_000, ctx.abortSignal);
 	}
 
 	const spawnedResults = runningSubAgentTracker.drainSpawnedResults();
@@ -354,7 +365,10 @@ async function handleCompletionHooks(
 		);
 		const interpreted = interpretHookResult('onSubAgentComplete', hookResult);
 
-		if (interpreted.injectedMessages && interpreted.injectedMessages.length > 0) {
+		if (
+			interpreted.injectedMessages &&
+			interpreted.injectedMessages.length > 0
+		) {
 			for (const injected of interpreted.injectedMessages) {
 				ctx.messages.push({role: injected.role, content: injected.content});
 			}
