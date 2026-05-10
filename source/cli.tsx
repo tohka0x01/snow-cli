@@ -644,20 +644,19 @@ const Startup = ({
 			// Store for cleanup
 			(global as any).__deps = deps;
 
-			// Check for updates with timeout
-			const updateCheckPromise = VERSION
-				? checkForUpdates(VERSION)
-				: Promise.resolve();
-
-			// Race between update check and 3-second timeout
-			await Promise.race([
-				updateCheckPromise,
-				new Promise(resolve => setTimeout(resolve, 3000)),
-			]);
-
+			// Render the app immediately once dependencies are ready.
+			// The update check runs in the background to avoid blocking startup
+			// when the network is slow/unreachable. WelcomeScreen subscribes to
+			// onUpdateNotice and will render the notification UI once a result
+			// is available.
 			if (mounted) {
 				setAppComponent(() => deps.App);
 				setAppReady(true);
+			}
+
+			// Fire-and-forget update check — never block app entry on network IO.
+			if (VERSION) {
+				void checkForUpdates(VERSION);
 			}
 		};
 
@@ -856,3 +855,8 @@ const mainInk = render(
 		patchConsole: true,
 	},
 );
+
+// Expose the Ink render handle so non-component code (e.g. the in-app
+// "Update Now" action in WelcomeScreen) can unmount Ink before handing the
+// terminal over to a child process such as `npm i -g snow-ai`.
+(global as any).__mainInk = mainInk;

@@ -17,6 +17,7 @@ import {getUpdateNotice, onUpdateNotice} from '../../utils/ui/updateNotice.js';
 import {useTheme} from '../contexts/ThemeContext.js';
 import UpdateNotice from '../components/common/UpdateNotice.js';
 import {useTerminalTitle} from '../../hooks/ui/useTerminalTitle.js';
+import {runUpdateAndExit} from '../../utils/core/runUpdate.js';
 
 // Lazy load all configuration screens for better startup performance
 const ConfigScreen = React.lazy(() => import('./ConfigScreen.js'));
@@ -45,6 +46,16 @@ const ThemeSettingsScreen = React.lazy(
 );
 const HooksConfigScreen = React.lazy(() => import('./HooksConfigScreen.js'));
 const MCPConfigScreen = React.lazy(() => import('./MCPConfigScreen.js'));
+
+// 模块级标志：保证 SNOW CLI LOGO 的逐字符出现动画在整个进程生命周期内只播放一次。
+// 任何后续的重渲染（菜单切换返回、终端 resize 触发的 remount 等）都直接显示完整 LOGO，
+// 不会再次触发动画。
+let hasPlayedLogoRevealAnimation = false;
+// LOGO 完整版可见字符总数（3 行 × 21 字符 = 63），用作 reveal 的上限。
+// 中等版（36）小于该值，所以同一个 totalChars 也能让中等版提前完成动画。
+const LOGO_REVEAL_MAX_CHARS = 63;
+// 每个字符出现的间隔时间（毫秒），决定动画的整体速度。
+const LOGO_REVEAL_INTERVAL_MS = 10;
 
 type Props = {
 	version?: string;
@@ -85,6 +96,32 @@ export default function WelcomeScreen({
 	const {columns: terminalWidth} = useTerminalSize();
 	const {stdout} = useStdout();
 	const isInitialMount = useRef(true);
+
+	// LOGO 逐字符出现动画：
+	// - revealChars === undefined 表示动画已结束（或本次进程之前已播放过），完整显示。
+	// - 数字值表示当前可见的字符数，会从 0 递增到 LOGO_REVEAL_MAX_CHARS。
+	// 使用模块级 hasPlayedLogoRevealAnimation 保证只在首次进入时播放一次。
+	const [logoRevealChars, setLogoRevealChars] = useState<number | undefined>(
+		() => (hasPlayedLogoRevealAnimation ? undefined : 0),
+	);
+	useEffect(() => {
+		if (hasPlayedLogoRevealAnimation) return;
+		const interval = setInterval(() => {
+			setLogoRevealChars(prev => {
+				if (prev === undefined) return undefined;
+				const next = prev + 1;
+				if (next >= LOGO_REVEAL_MAX_CHARS) {
+					clearInterval(interval);
+					hasPlayedLogoRevealAnimation = true;
+					// 切换为 undefined 让 ChatHeaderLogo 直接渲染完整字符串，
+					// 后续重渲染不再走遮罩逻辑。
+					return undefined;
+				}
+				return next;
+			});
+		}, LOGO_REVEAL_INTERVAL_MS);
+		return () => clearInterval(interval);
+	}, []);
 	// 当终端宽度变化触发清屏时，先渲染为 null 一帧，把 ink/log-update 内部
 	// "上一帧"缓存重置为空字符串；下一帧再切回 false 恢复完整内容，
 	// 使新内容必然作为差异被完整写出，避免清屏后画面丢失。
@@ -112,6 +149,8 @@ export default function WelcomeScreen({
 		});
 		return unsubscribe;
 	}, []);
+
+	const hasUpdate = !!updateNotice;
 
 	const menuOptions = useMemo(
 		() => [
@@ -182,6 +221,19 @@ export default function WelcomeScreen({
 				value: 'theme',
 				infoText: t.welcome.themeSettingsInfo,
 			},
+			...(hasUpdate
+				? [
+						{
+							label: `${t.welcome.updateNow}${
+								updateNotice ? ` (v${updateNotice.latestVersion})` : ''
+							}`,
+							value: 'update-now',
+							color: '#FFD700',
+							infoText: t.welcome.updateNowInfo,
+							clearTerminal: true,
+						},
+				  ]
+				: []),
 			{
 				label: t.welcome.exit,
 				value: 'exit',
@@ -189,7 +241,7 @@ export default function WelcomeScreen({
 				infoText: t.welcome.exitInfo,
 			},
 		],
-		[t],
+		[t, hasUpdate, updateNotice],
 	);
 
 	const [remountKey, setRemountKey] = useState(0);
@@ -250,6 +302,11 @@ export default function WelcomeScreen({
 				setInlineView('language-settings');
 			} else if (value === 'theme') {
 				setInlineView('theme-settings');
+			} else if (value === 'update-now') {
+				// Hand the terminal over to npm: unmount Ink and exec the update.
+				// runUpdateAndExit() does not return — the process exits when
+				// the npm child finishes.
+				runUpdateAndExit();
 			} else {
 				// Pass through to parent for other actions (chat, exit, etc.)
 				onMenuSelect?.(value);
@@ -335,6 +392,11 @@ export default function WelcomeScreen({
 	// 否则 ChatHeaderLogo 在 hideCompact 模式下会返回 null，留下一个空的右半区——
 	// 此时直接把整个圆角框让给 Menu 占满，不再做左右拆分。
 	const showLogoPane = logoColumnWidth >= 20;
+	// 当右侧 LOGO 走"完整最大版"分支（terminalWidth >= 30，对应这里 logoColumnWidth >= 30）
+	// 且存在更新提示时：把更新提示从顶部移到右侧 LOGO 下方，LOGO 区改为顶端对齐让 LOGO 上移，
+	// 这样在宽终端下能更紧凑地利用右半区的垂直空间。
+	const isFullLogoPane = showLogoPane && logoColumnWidth >= 30;
+	const showUpdateNoticeInLogoPane = isFullLogoPane && !!updateNotice;
 
 	// 调整终端宽度后清屏的中间帧：渲染为 null，强制 log-update 把上一帧缓存
 	// 重置为空字符串，下一帧的真实内容才能作为完整新内容被写出。
@@ -344,7 +406,7 @@ export default function WelcomeScreen({
 
 	return (
 		<Box flexDirection="column" width={terminalWidth} key={remountKey}>
-			{inlineView === 'menu' && updateNotice && (
+			{inlineView === 'menu' && updateNotice && !showUpdateNoticeInLogoPane && (
 				<UpdateNotice
 					currentVersion={updateNotice.currentVersion}
 					latestVersion={updateNotice.latestVersion}
@@ -389,21 +451,34 @@ export default function WelcomeScreen({
 									</Box>
 									<Box
 										flexDirection="column"
-										justifyContent="center"
+										justifyContent={
+											showUpdateNoticeInLogoPane ? 'flex-start' : 'center'
+										}
 										alignItems="center"
 										paddingX={2}
+										paddingY={showUpdateNoticeInLogoPane ? 1 : 0}
 										flexGrow={1}
 									>
 										<ChatHeaderLogo
 											terminalWidth={logoColumnWidth}
 											logoGradient={theme.colors.logoGradient}
 											hideCompact
+											revealChars={logoRevealChars}
 										/>
 										<Box marginTop={1}>
 											<Text color="gray" dimColor>
 												v{version} • {t.welcome.subtitle}
 											</Text>
 										</Box>
+										{showUpdateNoticeInLogoPane && updateNotice && (
+											<Box marginTop={1}>
+												<UpdateNotice
+													currentVersion={updateNotice.currentVersion}
+													latestVersion={updateNotice.latestVersion}
+													terminalWidth={logoColumnWidth}
+												/>
+											</Box>
+										)}
 									</Box>
 								</>
 							) : (

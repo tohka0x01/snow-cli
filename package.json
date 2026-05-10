@@ -1,6 +1,6 @@
 {
 	"name": "snow-ai",
-	"version": "0.7.24",
+	"version": "0.7.25",
 	"description": "Agentic coding in your terminal",
 	"license": "MIT",
 	"bin": {
@@ -12,7 +12,11 @@
 		"ai",
 		"assistant",
 		"bot",
-		"terminal"
+		"terminal",
+		"ai coding",
+		"agentic",
+		"snow",
+		"snow cli"
 	],
 	"author": "Mufasa",
 	"repository": {

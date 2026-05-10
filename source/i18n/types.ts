@@ -35,6 +35,8 @@ export type TranslationKeys = {
 		updateNoticeLatest: string;
 		updateNoticeRun: string;
 		updateNoticeGithub: string;
+		updateNow: string;
+		updateNowInfo: string;
 		exit: string;
 		exitInfo: string;
 	};

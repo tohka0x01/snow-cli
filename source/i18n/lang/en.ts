@@ -38,6 +38,9 @@ export const en: TranslationKeys = {
 		updateNoticeLatest: 'Latest',
 		updateNoticeRun: 'Run',
 		updateNoticeGithub: 'GitHub',
+		updateNow: 'Update Now',
+		updateNowInfo:
+			'Exit the CLI and run "npm i -g snow-ai" to upgrade to the latest version',
 		exit: 'Exit',
 		exitInfo: 'Exit the application',
 	},

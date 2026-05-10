@@ -56,10 +56,8 @@ jobs:
 
             ### What's New
 
-            - Modify some incorrect prompt information
-            - Add secondary confirmation and quick delete to history record deletion
-            - Fix the bug of abnormal loading of history records when switching between welcome page and conversation page
-            - Add anti-status loss mechanism to sub-agent and team mode
+            - Fixed some shortcuts not working 
+            - Reorganized menu display to improve aesthetics and responsiveness
             
             ### Installation
             ```bash

@@ -35,6 +35,8 @@ export const zh: TranslationKeys = {
 		updateNoticeLatest: '最新版本',
 		updateNoticeRun: '更新命令',
 		updateNoticeGithub: '项目地址',
+		updateNow: '立即更新',
+		updateNowInfo: '退出 CLI 并执行 "npm i -g snow-ai" 升级到最新版本',
 		exit: '退出',
 		exitInfo: '退出应用程序',
 	},
