@@ -594,6 +594,7 @@ export type TranslationKeys = {
 			permissions: string;
 			vulnerabilityHunting: string;
 			autoFormat: string;
+			simple: string;
 			toolSearch: string;
 			hybridCompress: string;
 			team: string;
@@ -620,6 +621,13 @@ export type TranslationKeys = {
 		commandOutput: {
 			// Auto-format command messages
 			autoFormat: {
+				enabled: string;
+				disabled: string;
+				statusEnabled: string;
+				statusDisabled: string;
+			};
+			// Simple mode command messages
+			simpleMode: {
 				enabled: string;
 				disabled: string;
 				statusEnabled: string;

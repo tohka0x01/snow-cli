@@ -603,6 +603,7 @@ export const zhTW: TranslationKeys = {
 			vulnerabilityHunting: '切換漏洞檢查模式，進行安全性代碼分析',
 			autoFormat:
 				'文件編輯後自動格式化開關。用法: /auto-format [on|off|status]',
+			simple: '切換主題簡易模式。用法: /simple [on|off|status]',
 			toolSearch: '切換工具搜尋（漸進式工具載入）。預設啟用以節省上下文',
 			hybridCompress:
 				'切換混合壓縮模式（AI 摘要 + 智慧截斷，用於 /compact 和自動壓縮）',
@@ -635,6 +636,13 @@ export const zhTW: TranslationKeys = {
 				disabled: '自動格式化: 已停用',
 				statusEnabled: '自動格式化: 已啟用',
 				statusDisabled: '自動格式化: 已停用',
+			},
+			// 簡易模式命令訊息
+			simpleMode: {
+				enabled: '簡易模式: 已啟用',
+				disabled: '簡易模式: 已停用',
+				statusEnabled: '簡易模式: 已啟用',
+				statusDisabled: '簡易模式: 已停用',
 			},
 			// 導出命令消息
 			export: {

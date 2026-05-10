@@ -1109,6 +1109,12 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 					}
 					return newValue;
 				});
+			} else if (result.success && result.action === 'toggleSimple') {
+				// /simple 切换简易模式后，ChatHeader 等位于 <Static> 区域的组件
+				// 不会随 simpleMode 变化自动重绘，必须强制清屏并 bump remountKey
+				// 让 <Static> 重新挂载，按新模式重绘静态区域。
+				resetTerminal(stdout);
+				options.setRemountKey(prev => prev + 1);
 			} else if (
 				result.success &&
 				result.action === 'toggleVulnerabilityHunting'

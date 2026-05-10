@@ -43,8 +43,8 @@ export function useChatScreenModes({enableYolo, enablePlan}: Options) {
 	const [toolSearchDisabled, setToolSearchDisabled] = useState(
 		() => !getToolSearchEnabled(),
 	);
-	const [hybridCompressEnabled, setHybridCompressEnabled] = useState(
-		() => getHybridCompressEnabled(),
+	const [hybridCompressEnabled, setHybridCompressEnabled] = useState(() =>
+		getHybridCompressEnabled(),
 	);
 	const [teamMode, setTeamMode] = useState(() => getTeamMode());
 	const [simpleMode, setSimpleMode] = useState(() => getSimpleMode());
@@ -92,6 +92,10 @@ export function useChatScreenModes({enableYolo, enablePlan}: Options) {
 		const handleConfigChange = (event: {type: string; value: any}) => {
 			if (event.type === 'showThinking') {
 				setShowThinking(event.value);
+			} else if (event.type === 'simpleMode') {
+				// /simple 命令切换后通过事件即时同步 React state，
+				// 避免 1s 轮询造成 ChatHeader 第一次重挂载时仍用旧值。
+				setSimpleMode(Boolean(event.value));
 			}
 		};
 

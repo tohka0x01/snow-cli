@@ -10,6 +10,7 @@ export function useChatScreenCommands(workingDirectory: string) {
 		Promise.all([
 			import('../../../utils/commands/clear.js'),
 			import('../../../utils/commands/profiles.js'),
+			import('../../../utils/commands/simple.js'),
 			import('../../../utils/commands/resume.js'),
 			import('../../../utils/commands/mcp.js'),
 			import('../../../utils/commands/yolo.js'),

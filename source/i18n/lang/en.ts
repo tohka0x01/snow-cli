@@ -643,6 +643,7 @@ export const en: TranslationKeys = {
 				'Toggle vulnerability hunting mode for security-focused code analysis',
 			autoFormat:
 				'Auto-formatting switch after file editing. Usage: /auto-format [on|off|status]',
+			simple: 'Toggle theme simple mode. Usage: /simple [on|off|status]',
 			toolSearch:
 				'Toggle Tool Search (progressive tool loading). Enabled by default to save context',
 			hybridCompress:
@@ -678,6 +679,13 @@ export const en: TranslationKeys = {
 				disabled: 'Auto-format: Disabled for this project',
 				statusEnabled: 'Auto-format: Enabled for this project',
 				statusDisabled: 'Auto-format: Disabled for this project',
+			},
+			// Simple mode command messages
+			simpleMode: {
+				enabled: 'Simple mode: Enabled',
+				disabled: 'Simple mode: Disabled',
+				statusEnabled: 'Simple mode: Enabled',
+				statusDisabled: 'Simple mode: Disabled',
 			},
 			// Export command messages
 			export: {

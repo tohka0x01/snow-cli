@@ -602,6 +602,7 @@ export const zh: TranslationKeys = {
 			vulnerabilityHunting: '切换漏洞检查模式，进行安全性代码分析',
 			autoFormat:
 				'文件编辑后自动格式化开关。用法: /auto-format [on|off|status]',
+			simple: '切换主题简易模式。用法: /simple [on|off|status]',
 			toolSearch: '切换工具搜索（渐进式工具加载）。默认启用以节省上下文',
 			hybridCompress:
 				'切换混合压缩模式（AI 摘要 + 智能截断，用于 /compact 和自动压缩）',
@@ -634,6 +635,13 @@ export const zh: TranslationKeys = {
 				disabled: '自动格式化: 已禁用',
 				statusEnabled: '自动格式化: 已启用',
 				statusDisabled: '自动格式化: 已禁用',
+			},
+			// 简易模式命令消息
+			simpleMode: {
+				enabled: '简易模式: 已启用',
+				disabled: '简易模式: 已禁用',
+				statusEnabled: '简易模式: 已启用',
+				statusDisabled: '简易模式: 已禁用',
 			},
 			// 导出命令消息
 			export: {
