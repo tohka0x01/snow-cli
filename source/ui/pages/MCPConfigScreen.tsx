@@ -277,7 +277,7 @@ export default function MCPConfigScreen({onBack}: Props) {
 											: theme.colors.menuNormal
 									}
 								>
-									{isSelected ? '> ' : '  '}
+									{isSelected ? '❯ ' : '  '}
 									{opt.label}
 								</Text>
 								<Box marginLeft={3}>

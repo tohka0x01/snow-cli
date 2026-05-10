@@ -7,7 +7,6 @@ import React, {
 	Suspense,
 } from 'react';
 import {Box, Text, useStdout} from 'ink';
-import {Alert} from '@inkjs/ui';
 import ansiEscapes from 'ansi-escapes';
 import Spinner from 'ink-spinner';
 import Menu from '../components/common/Menu.js';
@@ -361,12 +360,54 @@ export default function WelcomeScreen({
 					<Box
 						borderStyle="round"
 						borderColor={theme.colors.menuInfo}
-						flexDirection="row"
+						flexDirection="column"
 						width={terminalWidth - 2}
 					>
-						{showLogoPane ? (
-							<>
-								<Box width="50%" flexShrink={0}>
+						<Box flexDirection="row">
+							{showLogoPane ? (
+								<>
+									{/* 左半 Menu：把竖线分隔放到这里的 right border 上。
+									    原因：Menu 内部会因 scroll 提示（↑ N more above / ↓ N more below）
+									    在不同选中项下出现/消失，行高动态变化。row 容器高度跟随更高的 Menu，
+									    若把竖线放在右半 Logo Box 上，yoga 不一定会把右半 stretch 到 row 高度，
+									    会导致竖线只画 Logo 自身那几行。把竖线挂在 Menu Box 上则自然贴满全高。 */}
+									<Box
+										width="50%"
+										flexShrink={0}
+										borderStyle="single"
+										borderColor={theme.colors.menuInfo}
+										borderTop={false}
+										borderBottom={false}
+										borderLeft={false}
+									>
+										<Menu
+											options={menuOptions}
+											onSelect={handleInlineMenuSelect}
+											onSelectionChange={handleSelectionChange}
+											defaultIndex={currentMenuIndex}
+										/>
+									</Box>
+									<Box
+										flexDirection="column"
+										justifyContent="center"
+										alignItems="center"
+										paddingX={2}
+										flexGrow={1}
+									>
+										<ChatHeaderLogo
+											terminalWidth={logoColumnWidth}
+											logoGradient={theme.colors.logoGradient}
+											hideCompact
+										/>
+										<Box marginTop={1}>
+											<Text color="gray" dimColor>
+												v{version} • {t.welcome.subtitle}
+											</Text>
+										</Box>
+									</Box>
+								</>
+							) : (
+								<Box flexGrow={1}>
 									<Menu
 										options={menuOptions}
 										onSelect={handleInlineMenuSelect}
@@ -374,50 +415,25 @@ export default function WelcomeScreen({
 										defaultIndex={currentMenuIndex}
 									/>
 								</Box>
-								<Box
-									borderStyle="single"
-									borderColor={theme.colors.menuInfo}
-									borderTop={false}
-									borderBottom={false}
-									borderRight={false}
-									flexDirection="column"
-									justifyContent="center"
-									alignItems="center"
-									paddingX={2}
-									flexGrow={1}
-								>
-									<ChatHeaderLogo
-										terminalWidth={logoColumnWidth}
-										logoGradient={theme.colors.logoGradient}
-										hideCompact
-									/>
-									<Box marginTop={1}>
-										<Text color="gray" dimColor>
-											v{version} • {t.welcome.subtitle}
-										</Text>
-									</Box>
-								</Box>
-							</>
-						) : (
-							<Box flexGrow={1}>
-								<Menu
-									options={menuOptions}
-									onSelect={handleInlineMenuSelect}
-									onSelectionChange={handleSelectionChange}
-									defaultIndex={currentMenuIndex}
-								/>
-							</Box>
-						)}
+							)}
+						</Box>
+						{/* 框内底部说明区：使用上边框作为横向分隔线，与外框融为一体 */}
+						<Box
+							borderStyle="single"
+							borderColor={theme.colors.menuInfo}
+							borderLeft={false}
+							borderRight={false}
+							borderBottom={false}
+							paddingX={1}
+							flexDirection="row"
+						>
+							<Text color={theme.colors.menuInfo}>{infoText}</Text>
+						</Box>
 					</Box>
 				</Box>
 			)}
 
 			{/* Render inline view content based on current state */}
-			{inlineView === 'menu' && (
-				<Box paddingX={1}>
-					<Alert variant="info">{infoText}</Alert>
-				</Box>
-			)}
 			{inlineView !== 'menu' && (
 				<Box paddingX={1}>
 					<Text color={theme.colors.menuSecondary}>{inlineDivider}</Text>
