@@ -65,10 +65,10 @@ export default function ChatHeader({
 								)}`;
 							})()}
 						</Text>
-					<Text>• {t.chatScreen.headerExpandedView}</Text>
-					{process.platform === 'win32' && (
-						<Text>• Ctrl+G (Notepad edit)</Text>
-					)}
+						<Text>• {t.chatScreen.headerExpandedView}</Text>
+						{process.platform === 'win32' && (
+							<Text>• Ctrl+G (Notepad edit)</Text>
+						)}
 						<Text color={theme.colors.menuSecondary} dimColor>
 							•{' '}
 							{t.chatScreen.headerWorkingDirectory.replace(
@@ -84,12 +84,16 @@ export default function ChatHeader({
 }
 
 // Responsive ASCII art logo component for simple mode
-function ChatHeaderLogo({
+export function ChatHeaderLogo({
 	terminalWidth,
 	logoGradient,
+	hideCompact = false,
 }: {
 	terminalWidth: number;
 	logoGradient: [string, string, string];
+	// 当为 true 时，宽度过窄（< 20）不再回退到最小 LOGO，而是直接不渲染。
+	// 用于 WelcomeScreen 这种"位置紧张时宁可隐藏也不要降级展示"的场景。
+	hideCompact?: boolean;
 }) {
 	if (terminalWidth >= 30) {
 		// Full version: SNOW CLI with thin style (width >= 30)
@@ -122,6 +126,11 @@ function ChatHeaderLogo({
 	}
 
 	// Compact version: Normal text (width < 20)
+	// 当 hideCompact=true 时，调用方明确要求"宽度不够就直接不渲染最小 LOGO"，
+	// 避免在 WelcomeScreen 右半区被压缩时还塞一行 "❆ SNOW CLI" 文本。
+	if (hideCompact) {
+		return null;
+	}
 	return (
 		<Box marginBottom={0}>
 			<Text>
