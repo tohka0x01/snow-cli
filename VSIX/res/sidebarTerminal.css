@@ -216,6 +216,40 @@ body {
 	outline-offset: -2px;
 }
 
+#terminal-container::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	pointer-events: none;
+	background: rgba(255, 255, 255, 0);
+	border: 0 solid rgba(255, 255, 255, 0);
+	box-sizing: border-box;
+	opacity: 0;
+}
+
+#terminal-container.bell-flash::after {
+	animation: terminal-bell-flash 320ms ease-out;
+}
+
+@keyframes terminal-bell-flash {
+	0% {
+		opacity: 1;
+		background: rgba(255, 255, 255, 0.18);
+		border: 3px solid rgba(255, 255, 255, 0.85);
+	}
+	60% {
+		opacity: 0.6;
+		background: rgba(255, 255, 255, 0.05);
+		border: 3px solid rgba(255, 255, 255, 0.4);
+	}
+	100% {
+		opacity: 0;
+		background: rgba(255, 255, 255, 0);
+		border: 3px solid rgba(255, 255, 255, 0);
+	}
+}
+
 #terminal-container.terminal-error {
 	color: var(--terminal-error);
 	padding: 20px;

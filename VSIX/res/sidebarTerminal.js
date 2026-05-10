@@ -691,6 +691,266 @@
 			vscode.postMessage({type: 'input', data: text});
 		};
 
+		const createBellPlayer = () => {
+			const config = {
+				enabled: true,
+				volume: 0.5,
+				sound: 'beep',
+				visualFlash: true,
+			};
+			let audioCtx = null;
+			let lastBellAt = 0;
+			let visualFlashClearTimer = null;
+			const MIN_BELL_INTERVAL_MS = 80;
+			const VISUAL_FLASH_DURATION_MS = 320;
+
+			const ensureAudioCtx = () => {
+				if (audioCtx) {
+					return audioCtx;
+				}
+				const Ctor =
+					typeof window.AudioContext === 'function'
+						? window.AudioContext
+						: typeof window.webkitAudioContext === 'function'
+						? window.webkitAudioContext
+						: undefined;
+				if (!Ctor) {
+					return null;
+				}
+				try {
+					audioCtx = new Ctor();
+				} catch (error) {
+					logWarn(
+						'Failed to initialize AudioContext for terminal bell.',
+						error,
+					);
+					audioCtx = null;
+				}
+				return audioCtx;
+			};
+
+			const unlockAudio = () => {
+				const ctx = ensureAudioCtx();
+				if (!ctx || ctx.state !== 'suspended') {
+					return;
+				}
+				ctx.resume().catch(() => {
+					// AudioContext will be retried on the next user gesture.
+				});
+			};
+
+			const updateConfig = next => {
+				if (!next || typeof next !== 'object') {
+					return;
+				}
+				if (typeof next.enabled === 'boolean') {
+					config.enabled = next.enabled;
+				}
+				if (typeof next.volume === 'number' && Number.isFinite(next.volume)) {
+					config.volume = Math.min(1, Math.max(0, next.volume));
+				}
+				if (typeof next.sound === 'string') {
+					config.sound = next.sound;
+				}
+				if (typeof next.visualFlash === 'boolean') {
+					config.visualFlash = next.visualFlash;
+				}
+			};
+
+			const flashBellOverlay = () => {
+				if (!config.visualFlash) {
+					return;
+				}
+				container.classList.remove('bell-flash');
+				// Force reflow so the animation restarts on rapid consecutive bells.
+				void container.offsetWidth;
+				container.classList.add('bell-flash');
+				if (visualFlashClearTimer) {
+					clearTimeout(visualFlashClearTimer);
+				}
+				visualFlashClearTimer = setTimeout(() => {
+					container.classList.remove('bell-flash');
+					visualFlashClearTimer = null;
+				}, VISUAL_FLASH_DURATION_MS);
+			};
+
+			const scheduleBellTone = (ctx, gainNode, spec) => {
+				const oscillator = ctx.createOscillator();
+				oscillator.type = spec.type || 'sine';
+				oscillator.frequency.setValueAtTime(spec.frequency, spec.startTime);
+				if (typeof spec.endFrequency === 'number') {
+					oscillator.frequency.exponentialRampToValueAtTime(
+						spec.endFrequency,
+						spec.startTime + spec.duration,
+					);
+				}
+				oscillator.connect(gainNode);
+				oscillator.start(spec.startTime);
+				oscillator.stop(spec.startTime + spec.duration + 0.02);
+			};
+
+			const renderSound = ctx => {
+				const masterGain = ctx.createGain();
+				masterGain.gain.value = config.volume;
+				masterGain.connect(ctx.destination);
+
+				const now = ctx.currentTime;
+				const peak = 0.6; // pre-volume peak; final amplitude = peak * config.volume
+				const tones = [];
+
+				switch (config.sound) {
+					case 'ding': {
+						const envGain = ctx.createGain();
+						envGain.gain.setValueAtTime(0.0001, now);
+						envGain.gain.exponentialRampToValueAtTime(peak, now + 0.005);
+						envGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+						envGain.connect(masterGain);
+						tones.push({
+							type: 'triangle',
+							frequency: 1320,
+							startTime: now,
+							duration: 0.32,
+							gain: envGain,
+						});
+						tones.push({
+							type: 'triangle',
+							frequency: 1980,
+							startTime: now,
+							duration: 0.28,
+							gain: envGain,
+						});
+						break;
+					}
+					case 'chime': {
+						const env1 = ctx.createGain();
+						env1.gain.setValueAtTime(0.0001, now);
+						env1.gain.exponentialRampToValueAtTime(peak, now + 0.01);
+						env1.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+						env1.connect(masterGain);
+						tones.push({
+							type: 'sine',
+							frequency: 1046.5,
+							startTime: now,
+							duration: 0.2,
+							gain: env1,
+						});
+
+						const env2 = ctx.createGain();
+						env2.gain.setValueAtTime(0.0001, now + 0.16);
+						env2.gain.exponentialRampToValueAtTime(peak, now + 0.17);
+						env2.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+						env2.connect(masterGain);
+						tones.push({
+							type: 'sine',
+							frequency: 783.99,
+							startTime: now + 0.16,
+							duration: 0.26,
+							gain: env2,
+						});
+						break;
+					}
+					case 'pluck': {
+						const envGain = ctx.createGain();
+						envGain.gain.setValueAtTime(0.0001, now);
+						envGain.gain.exponentialRampToValueAtTime(peak * 0.85, now + 0.005);
+						envGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+						envGain.connect(masterGain);
+						tones.push({
+							type: 'sawtooth',
+							frequency: 660,
+							endFrequency: 330,
+							startTime: now,
+							duration: 0.18,
+							gain: envGain,
+						});
+						break;
+					}
+					case 'blip': {
+						const envGain = ctx.createGain();
+						envGain.gain.setValueAtTime(0.0001, now);
+						envGain.gain.exponentialRampToValueAtTime(peak, now + 0.004);
+						envGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+						envGain.connect(masterGain);
+						tones.push({
+							type: 'square',
+							frequency: 1760,
+							startTime: now,
+							duration: 0.08,
+							gain: envGain,
+						});
+						break;
+					}
+					case 'beep':
+					default: {
+						const envGain = ctx.createGain();
+						envGain.gain.setValueAtTime(0.0001, now);
+						envGain.gain.exponentialRampToValueAtTime(peak, now + 0.01);
+						envGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+						envGain.connect(masterGain);
+						tones.push({
+							type: 'sine',
+							frequency: 800,
+							startTime: now,
+							duration: 0.13,
+							gain: envGain,
+						});
+						break;
+					}
+				}
+
+				for (const tone of tones) {
+					scheduleBellTone(ctx, tone.gain, tone);
+				}
+			};
+
+			const playBell = () => {
+				if (!config.enabled) {
+					return;
+				}
+				const now = Date.now();
+				if (now - lastBellAt < MIN_BELL_INTERVAL_MS) {
+					return;
+				}
+				lastBellAt = now;
+				flashBellOverlay();
+				if (config.sound === 'none' || config.volume <= 0) {
+					return;
+				}
+				const ctx = ensureAudioCtx();
+				if (!ctx) {
+					return;
+				}
+				if (ctx.state === 'suspended') {
+					ctx.resume().catch(() => {
+						// User has not yet interacted with the webview; visual flash is the only feedback this time.
+					});
+					return;
+				}
+				try {
+					renderSound(ctx);
+				} catch (error) {
+					logWarn('Failed to play terminal bell.', error);
+				}
+			};
+
+			const dispose = () => {
+				if (visualFlashClearTimer) {
+					clearTimeout(visualFlashClearTimer);
+					visualFlashClearTimer = null;
+				}
+			};
+
+			return {playBell, unlockAudio, updateConfig, dispose};
+		};
+
+		const {
+			playBell: playTerminalBell,
+			unlockAudio: unlockTerminalAudio,
+			updateConfig: updateBellConfig,
+			dispose: disposeBellPlayer,
+		} = createBellPlayer();
+		registerCleanup(disposeBellPlayer);
+
 		const term = new TerminalCtor({
 			cursorBlink: true,
 			fontFamily: 'monospace',
@@ -1443,6 +1703,17 @@
 			}),
 		);
 
+		registerDisposable(
+			term.onBell(() => {
+				playTerminalBell();
+			}),
+		);
+
+		// AudioContext starts suspended in webviews until a user gesture occurs;
+		// arm it on first interaction so subsequent bells can produce sound.
+		addManagedListener(container, 'pointerdown', unlockTerminalAudio);
+		addManagedListener(container, 'keydown', unlockTerminalAudio);
+
 		const {allowTerminalKeyEvent, handleContextMenu} =
 			createClipboardAndContextController({term, sendInput});
 
@@ -1555,6 +1826,9 @@
 				applyTermOption(term.options, 'lineHeight', payload.lineHeight);
 				fitTerminal();
 				scheduleFocusRecovery();
+			},
+			updateBell: payload => {
+				updateBellConfig(payload);
 			},
 			exit: payload => {
 				if (

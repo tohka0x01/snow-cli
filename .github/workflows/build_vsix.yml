@@ -65,7 +65,7 @@ jobs:
 
             ### What's New
 
-            - Add AI-generated git commit message feature
+            - Fix the problem of not being able to trigger the system ringtone and add relevant settings
 
             ### Installation
 

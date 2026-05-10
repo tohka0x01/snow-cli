@@ -2,7 +2,7 @@
 	"name": "snow-cli",
 	"displayName": "Snow CLI",
 	"description": "Snow AI CLI with ACE Code Search - Intelligent code navigation and search powered by AI",
-	"version": "0.4.22",
+	"version": "0.4.23",
 	"publisher": "mufasa",
 	"repository": {
 		"type": "git",
@@ -91,6 +91,44 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Enable Git Blame annotations. Shows commit info (author, time, message) on the current line, similar to GitLens."
+				},
+				"snow-cli.bell.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable terminal bell (BEL / \\x07) notifications. When disabled, both audio and visual feedback are suppressed."
+				},
+				"snow-cli.bell.volume": {
+					"type": "number",
+					"default": 0.5,
+					"minimum": 0,
+					"maximum": 1,
+					"description": "Terminal bell volume (0.0 - 1.0). Set to 0 to mute audio while still allowing visual flash."
+				},
+				"snow-cli.bell.sound": {
+					"type": "string",
+					"default": "beep",
+					"enum": [
+						"beep",
+						"ding",
+						"chime",
+						"pluck",
+						"blip",
+						"none"
+					],
+					"enumDescriptions": [
+						"Short 800Hz sine beep (default classic terminal bell)",
+						"Bright triangle-wave ding",
+						"Two-tone descending chime",
+						"Soft sawtooth pluck",
+						"Quick high-frequency blip",
+						"No sound (visual flash only)"
+					],
+					"description": "Bell sound style. Use 'none' to disable audio while keeping visual flash enabled."
+				},
+				"snow-cli.bell.visualFlash": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show a brief visual flash overlay on the terminal panel when the bell rings."
 				}
 			}
 		},

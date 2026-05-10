@@ -391,6 +391,11 @@ export function activate(context: vscode.ExtensionContext) {
 			) {
 				sidebarProvider?.restartTerminal({reason: 'configChange'});
 			}
+
+			// Bell settings hot-reload — does not require terminal restart.
+			if (e.affectsConfiguration('snow-cli.bell')) {
+				sidebarProvider?.sendBellConfig();
+			}
 		}),
 	);
 
