@@ -56,6 +56,7 @@ export type TranslationKeys = {
 		notSet: string;
 		browserPath: string;
 		autoDetect: string;
+		searchEngine: string;
 		errors: string;
 		editingHint: string;
 		navigationHint: string;

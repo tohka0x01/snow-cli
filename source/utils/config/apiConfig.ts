@@ -162,6 +162,7 @@ const SYSTEM_PROMPT_FILE = join(CONFIG_DIR, 'system-prompt.txt'); // 旧版本�
 const SYSTEM_PROMPT_JSON_FILE = join(CONFIG_DIR, 'system-prompt.json'); // 新版本
 const CUSTOM_HEADERS_FILE = join(CONFIG_DIR, 'custom-headers.json');
 export const STATUSLINE_HOOKS_DIR = join(CONFIG_DIR, 'plugin', 'statusline');
+export const SEARCH_ENGINES_DIR = join(CONFIG_DIR, 'plugin', 'search_engines');
 
 export type MCPConfigScope = 'global' | 'project';
 

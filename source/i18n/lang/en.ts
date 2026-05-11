@@ -58,6 +58,7 @@ export const en: TranslationKeys = {
 		notSet: 'Not set',
 		browserPath: 'Browser Path (Optional):',
 		autoDetect: 'Auto-detect',
+		searchEngine: 'Search Engine:',
 		errors: 'Errors:',
 		editingHint:
 			'Editing mode: Press Enter to save and exit editing (Make your changes and press Enter when done)',

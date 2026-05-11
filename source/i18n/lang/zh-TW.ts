@@ -54,6 +54,7 @@ export const zhTW: TranslationKeys = {
 		notSet: '未設定',
 		browserPath: '瀏覽器路徑(可選):',
 		autoDetect: '自動偵測',
+		searchEngine: '搜尋引擎:',
 		errors: '錯誤:',
 		editingHint: '編輯模式: 按 Enter 儲存並退出編輯(完成更改後按 Enter)',
 		navigationHint:

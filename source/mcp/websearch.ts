@@ -4,11 +4,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {getProxyConfig} from '../utils/config/proxyConfig.js';
 // Type definitions
-import type {
-	SearchResult,
-	SearchResponse,
-	WebPageContent,
-} from './types/websearch.types.js';
+import type {SearchResponse, WebPageContent} from './types/websearch.types.js';
 // Utility functions
 import {
 	findBrowserExecutable,
@@ -18,12 +14,22 @@ import {
 	getRunningBrowserWSEndpoint,
 } from './utils/websearch/browser.utils.js';
 import {cleanText} from './utils/websearch/text.utils.js';
+import {
+	getSearchEngine,
+	ensureSearchEnginesLoaded,
+} from './engines/websearch/index.js';
 
 /**
- * Web Search Service using DuckDuckGo Lite with Puppeteer Core
- * Provides web search functionality with real browser support and proxy
- * Uses system-installed Chrome/Edge to reduce package size
- * Supports WSL environment by connecting to Windows browser via WebSocket
+ * Web Search Service using a pluggable search engine (DuckDuckGo / Bing / ...)
+ * driven by Puppeteer Core.
+ *
+ * The browser lifecycle (launch / connect / close) is owned by this service;
+ * the actual per-engine search/extraction logic lives under
+ * `./engines/websearch/*`. To add a new engine, implement `SearchEngine` and
+ * register it in `./engines/websearch/index.ts`.
+ *
+ * Uses system-installed Chrome/Edge to reduce package size and supports WSL
+ * by connecting to a Windows browser via WebSocket.
  */
 export class WebSearchService {
 	private maxResults: number;
@@ -202,7 +208,7 @@ export class WebSearchService {
 	}
 
 	/**
-	 * Perform a web search using DuckDuckGo
+	 * Perform a web search using the engine selected in proxy config.
 	 * @param query - Search query string
 	 * @param maxResults - Maximum number of results to return (default: 10)
 	 * @returns Search results with title, URL, and snippet
@@ -212,6 +218,14 @@ export class WebSearchService {
 		let page: Page | null = null;
 
 		try {
+			// Resolve search engine from current proxy/search config. Ensure
+			// user-supplied plugins under ~/.snow/plugin/search_engines/ are
+			// loaded into the registry before resolving — this is a no-op after
+			// the first call.
+			await ensureSearchEnginesLoaded();
+			const proxyConfig = getProxyConfig();
+			const engine = getSearchEngine(proxyConfig.searchEngine);
+
 			// Launch browser with proxy
 			const browser = await this.launchBrowser();
 			page = await browser.newPage();
@@ -221,93 +235,8 @@ export class WebSearchService {
 				'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 			);
 
-			// Encode query for URL
-			const encodedQuery = encodeURIComponent(query);
-			const searchUrl = `https://lite.duckduckgo.com/lite?q=${encodedQuery}`;
-
-			// Navigate to search page with timeout
-			await page.goto(searchUrl, {
-				waitUntil: 'networkidle2',
-				timeout: 30000,
-			});
-
-			// Extract search results from the page
-			const results = await page.evaluate((maxLimit: number) => {
-				const searchResults: SearchResult[] = [];
-				const rows = document.querySelectorAll('table tr');
-
-				let currentResult: Partial<SearchResult> = {};
-				let resultCount = 0;
-
-				for (const row of rows) {
-					if (resultCount >= maxLimit) break;
-
-					// Check if this row contains a link (title row)
-					const linkElement = row.querySelector('a.result-link');
-					if (linkElement) {
-						// Save previous result if exists
-						if (currentResult.title && currentResult.url) {
-							searchResults.push(currentResult as SearchResult);
-							resultCount++;
-							if (resultCount >= maxLimit) break;
-						}
-
-						// Start new result
-						const title = linkElement.textContent?.trim() || '';
-						const href = linkElement.getAttribute('href') || '';
-
-						// Extract actual URL from DuckDuckGo redirect
-						let actualUrl = href;
-						if (href.includes('uddg=')) {
-							const match = href.match(/uddg=([^&]+)/);
-							if (match && match[1]) {
-								actualUrl = decodeURIComponent(match[1]);
-							}
-						}
-
-						currentResult = {
-							title: title,
-							url: actualUrl,
-							snippet: '',
-							displayUrl: '',
-						};
-						continue;
-					}
-
-					// Check if this row contains snippet
-					const snippetElement = row.querySelector('td.result-snippet');
-					if (snippetElement && currentResult.title) {
-						currentResult.snippet = snippetElement.textContent?.trim() || '';
-						continue;
-					}
-
-					// Check if this row contains display URL
-					const displayUrlElement = row.querySelector('span.link-text');
-					if (displayUrlElement && currentResult.title) {
-						currentResult.displayUrl =
-							displayUrlElement.textContent?.trim() || '';
-					}
-				}
-
-				// Add last result if exists
-				if (
-					currentResult.title &&
-					currentResult.url &&
-					resultCount < maxLimit
-				) {
-					searchResults.push(currentResult as SearchResult);
-				}
-
-				return searchResults;
-			}, limit);
-
-			// Clean text in results
-			const cleanedResults = results.map(result => ({
-				title: cleanText(result.title),
-				url: result.url,
-				snippet: cleanText(result.snippet),
-				displayUrl: cleanText(result.displayUrl),
-			}));
+			// Delegate the actual search/extraction to the engine.
+			const cleanedResults = await engine.search(page, query, limit);
 
 			// Close the page
 			await page.close();
@@ -504,7 +433,7 @@ export const mcpTools = [
 	{
 		name: 'websearch-search',
 		description:
-			'Search the web using DuckDuckGo. Returns a list of search results with titles, URLs, and snippets. Best for finding current information, documentation, news, or general web content. **IMPORTANT WORKFLOW**: After getting search results, analyze them and choose ONLY ONE most credible and relevant page to fetch. Do NOT fetch multiple pages - reading one high-quality source is sufficient and more efficient.',
+			'Search the web using the configured search engine (DuckDuckGo or Bing). Returns a list of search results with titles, URLs, and snippets. Best for finding current information, documentation, news, or general web content. **IMPORTANT WORKFLOW**: After getting search results, analyze them and choose ONLY ONE most credible and relevant page to fetch. Do NOT fetch multiple pages - reading one high-quality source is sufficient and more efficient.',
 		inputSchema: {
 			type: 'object',
 			properties: {

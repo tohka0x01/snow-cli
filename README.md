@@ -83,6 +83,7 @@ winget install Microsoft.WindowsTerminal
 - [SSE Service Mode](docs/usage/en/20.SSE%20Service%20Mode.md) - SSE server startup, API endpoints explanation, tool confirmation flow, permission configuration, YOLO mode, client integration examples
 - [Custom StatusLine Guide](docs/usage/en/21.Custom%20StatusLine%20Guide.md) - User-level StatusLine plugins, hook structure, override behavior, bilingual examples
 - [Team Mode Guide](docs/usage/en/22.Team%20Mode%20Guide.md) - Multi-agent collaboration, parallel task execution, team management
+- [Custom Search Engine Guide](docs/usage/en/23.Custom%20Search%20Engine%20Guide.md) - User-level search engine plugins, engine contract, enable flag, minimal template
 
 ### Recommended ROLE.md
 

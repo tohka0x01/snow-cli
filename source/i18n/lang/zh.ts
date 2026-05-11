@@ -54,6 +54,7 @@ export const zh: TranslationKeys = {
 		notSet: '未设置',
 		browserPath: '浏览器路径(可选):',
 		autoDetect: '自动检测',
+		searchEngine: '搜索引擎:',
 		errors: '错误:',
 		editingHint: '编辑模式: 按 Enter 保存并退出编辑(完成更改后按 Enter)',
 		navigationHint:
