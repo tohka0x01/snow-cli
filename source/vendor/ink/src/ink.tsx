@@ -11,7 +11,7 @@ import Yoga from './yoga-compat.js';
 import reconciler from './reconciler.js';
 import createRenderer from './renderer.js';
 import * as dom from './dom.js';
-import logUpdate, {type LogUpdate} from './log-update.js';
+import logUpdate, {type LogUpdate, writeSafely} from './log-update.js';
 import instances from './instances.js';
 import App from './components/App.js';
 import {type CursorRegistration} from './components/CursorContext.js';
@@ -50,7 +50,11 @@ export default class Ink {
 	lastOutput: string;
 	private readonly container: FiberRoot;
 	private readonly rootNode: dom.DOMElement;
-	private readonly renderFrame: () => {output: string; outputHeight: number; staticOutput: string};
+	private readonly renderFrame: () => {
+		output: string;
+		outputHeight: number;
+		staticOutput: string;
+	};
 	fullStaticOutput: string;
 	private exitPromise?: Promise<void>;
 	private restoreConsole?: () => void;
@@ -70,7 +74,7 @@ export default class Ink {
 			: throttle(this.onRender, 32, {
 					leading: true,
 					trailing: true,
-				});
+			  });
 
 		this.rootNode.onImmediateRender = this.onRender;
 		this.log = logUpdate.create(options.stdout);
@@ -79,7 +83,7 @@ export default class Ink {
 			: (throttle(this.log, undefined, {
 					leading: true,
 					trailing: true,
-				}) as unknown as LogUpdate);
+			  }) as unknown as LogUpdate);
 
 		// Ignore last render after unmounting a tree to prevent empty output before exit
 		this.isUnmounted = false;
@@ -200,13 +204,13 @@ export default class Ink {
 				this.fullStaticOutput += staticOutput;
 			}
 
-			this.options.stdout.write(this.fullStaticOutput + output);
+			writeSafely(this.options.stdout, this.fullStaticOutput + output);
 			return;
 		}
 
 		if (isInCi) {
 			if (hasStaticOutput) {
-				this.options.stdout.write(staticOutput);
+				writeSafely(this.options.stdout, staticOutput);
 			}
 
 			this.lastOutput = output;
@@ -222,16 +226,16 @@ export default class Ink {
 
 		if (outputHeight >= this.options.stdout.rows) {
 			if (hasStaticOutput) {
-				this.options.stdout.write(staticOutput);
+				writeSafely(this.options.stdout, staticOutput);
 			}
-			this.options.stdout.write(ansiEscapes.clearTerminal + output);
+			writeSafely(this.options.stdout, ansiEscapes.clearTerminal + output);
 			this.lastOutput = output;
 			return;
 		}
 
 		if (hasStaticOutput) {
 			this.log.clear();
-			this.options.stdout.write(staticOutput);
+			writeSafely(this.options.stdout, staticOutput);
 			this.log(output);
 		}
 
@@ -271,17 +275,20 @@ export default class Ink {
 		}
 
 		if (this.options.debug) {
-			this.options.stdout.write(data + this.fullStaticOutput + this.lastOutput);
+			writeSafely(
+				this.options.stdout,
+				data + this.fullStaticOutput + this.lastOutput,
+			);
 			return;
 		}
 
 		if (isInCi) {
-			this.options.stdout.write(data);
+			writeSafely(this.options.stdout, data);
 			return;
 		}
 
 		this.log.clear();
-		this.options.stdout.write(data);
+		writeSafely(this.options.stdout, data);
 		this.log(this.lastOutput);
 	}
 
@@ -291,18 +298,18 @@ export default class Ink {
 		}
 
 		if (this.options.debug) {
-			this.options.stderr.write(data);
-			this.options.stdout.write(this.fullStaticOutput + this.lastOutput);
+			writeSafely(this.options.stderr, data);
+			writeSafely(this.options.stdout, this.fullStaticOutput + this.lastOutput);
 			return;
 		}
 
 		if (isInCi) {
-			this.options.stderr.write(data);
+			writeSafely(this.options.stderr, data);
 			return;
 		}
 
 		this.log.clear();
-		this.options.stderr.write(data);
+		writeSafely(this.options.stderr, data);
 		this.log(this.lastOutput);
 	}
 
@@ -327,7 +334,7 @@ export default class Ink {
 		// CIs don't handle erasing ansi escapes well, so it's better to
 		// only render last frame of non-static output
 		if (isInCi) {
-			this.options.stdout.write(this.lastOutput + '\n');
+			writeSafely(this.options.stdout, this.lastOutput + '\n');
 		} else if (!this.options.debug) {
 			this.log.done();
 		}

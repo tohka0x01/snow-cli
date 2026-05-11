@@ -106,6 +106,18 @@ export const MAX_SYMBOLS_PER_FILE = 100;
 export const MAX_FZF_SYMBOL_NAMES = 30000;
 
 /**
+ * Default maximum symbols returned by action=file_outline.
+ * Prevents large files from producing huge tool results when maxResults is omitted.
+ */
+export const MAX_FILE_OUTLINE_SYMBOLS = 200;
+
+/**
+ * Maximum serialized payload size for action=file_outline before dropping context/signature.
+ * This is a source-level guard before the global token limiter runs.
+ */
+export const MAX_FILE_OUTLINE_PAYLOAD_CHARS = 120_000;
+
+/**
  * File size threshold for switching to chunked reading (1MB)
  * Files smaller than this are read entirely into memory
  * Files larger than this are processed in chunks to control memory usage

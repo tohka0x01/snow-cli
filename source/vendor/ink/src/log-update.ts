@@ -22,6 +22,36 @@ export type LogUpdate = {
 const visibleLineCount = (lines: string[], str: string): number =>
 	str.endsWith('\n') ? lines.length - 1 : lines.length;
 
+const isStreamWriteError = (error: unknown): boolean => {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	const code = (error as NodeJS.ErrnoException).code;
+	return (
+		code === 'ERR_STREAM_DESTROYED' ||
+		code === 'ERR_STREAM_WRITE_AFTER_END' ||
+		error.message.includes('stream was destroyed') ||
+		error.message.includes('write after end')
+	);
+};
+
+export const writeSafely = (stream: Writable, data: string): boolean => {
+	if (stream.destroyed || stream.writableEnded) {
+		return false;
+	}
+
+	try {
+		return stream.write(data);
+	} catch (error: unknown) {
+		if (isStreamWriteError(error)) {
+			return false;
+		}
+
+		throw error;
+	}
+};
+
 const create = (stream: Writable, {showCursor = false} = {}): LogUpdate => {
 	let previousLineCount = 0;
 	let previousOutput = '';
@@ -53,7 +83,8 @@ const create = (stream: Writable, {showCursor = false} = {}): LogUpdate => {
 		const visibleCount = visibleLineCount(lines, output);
 
 		if (output === previousOutput && cursorChanged) {
-			stream.write(
+			writeSafely(
+				stream,
 				buildCursorOnlySequence({
 					cursorWasShown,
 					previousLineCount,
@@ -70,7 +101,8 @@ const create = (stream: Writable, {showCursor = false} = {}): LogUpdate => {
 				previousCursorPosition,
 			);
 			const cursorSuffix = buildCursorSuffix(visibleCount, activeCursor);
-			stream.write(
+			writeSafely(
+				stream,
 				returnPrefix +
 					ansiEscapes.eraseLines(previousLineCount) +
 					output +
@@ -89,7 +121,7 @@ const create = (stream: Writable, {showCursor = false} = {}): LogUpdate => {
 			previousLineCount,
 			previousCursorPosition,
 		);
-		stream.write(prefix + ansiEscapes.eraseLines(previousLineCount));
+		writeSafely(stream, prefix + ansiEscapes.eraseLines(previousLineCount));
 		previousOutput = '';
 		previousLineCount = 0;
 		previousCursorPosition = undefined;

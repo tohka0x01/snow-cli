@@ -47,6 +47,8 @@ import {
 	MAX_INDEXED_FILES,
 	MAX_SYMBOLS_PER_FILE,
 	MAX_FZF_SYMBOL_NAMES,
+	MAX_FILE_OUTLINE_SYMBOLS,
+	MAX_FILE_OUTLINE_PAYLOAD_CHARS,
 	LARGE_FILE_THRESHOLD,
 	FILE_READ_CHUNK_SIZE,
 	TEXT_SEARCH_TIMEOUT_MS,
@@ -1741,6 +1743,40 @@ export class ACECodeSearchService {
 		});
 	}
 
+	private estimateFileOutlinePayloadChars(symbols: CodeSymbol[]): number {
+		return JSON.stringify(symbols).length;
+	}
+
+	private constrainFileOutlinePayload(
+		symbols: CodeSymbol[],
+		includeContext: boolean,
+	): CodeSymbol[] {
+		if (
+			this.estimateFileOutlinePayloadChars(symbols) <=
+			MAX_FILE_OUTLINE_PAYLOAD_CHARS
+		) {
+			return symbols;
+		}
+
+		let constrained = includeContext
+			? symbols.map(symbol => ({...symbol, context: undefined}))
+			: symbols;
+
+		if (
+			this.estimateFileOutlinePayloadChars(constrained) <=
+			MAX_FILE_OUTLINE_PAYLOAD_CHARS
+		) {
+			return constrained;
+		}
+
+		constrained = constrained.map(symbol => ({
+			...symbol,
+			signature: undefined,
+		}));
+
+		return constrained;
+	}
+
 	/**
 	 * Get code outline for a file (all symbols in the file)
 	 * Supports both local files and remote SSH files (ssh://user@host:port/path)
@@ -1772,10 +1808,21 @@ export class ACECodeSearchService {
 				content = await fs.readFile(effectivePath, 'utf-8');
 			}
 
+			const maxResults =
+				options?.maxResults && options.maxResults > 0
+					? Math.min(options.maxResults, MAX_FILE_OUTLINE_SYMBOLS)
+					: MAX_FILE_OUTLINE_SYMBOLS;
+			const includeContext = options?.includeContext !== false;
+
 			let symbols = await parseFileSymbols(
 				effectivePath,
 				content,
 				this.basePath,
+				{
+					includeContext,
+					includeSignature: includeContext,
+					maxSymbols: maxResults,
+				},
 			);
 
 			// Filter by symbol types if specified
@@ -1798,17 +1845,16 @@ export class ACECodeSearchService {
 				return 0;
 			});
 
-			// Limit results
-			if (options?.maxResults && options.maxResults > 0) {
-				symbols = symbols.slice(0, options.maxResults);
-			}
+			// Limit results. file_outline used to be unlimited by default, which could
+			// produce huge tool results and race with terminal teardown.
+			symbols = symbols.slice(0, maxResults);
 
-			// Remove context if not needed
-			if (options?.includeContext === false) {
+			// Remove or trim context before the global token limiter sees the result.
+			if (!includeContext) {
 				symbols = symbols.map(s => ({...s, context: undefined}));
 			}
 
-			return symbols;
+			return this.constrainFileOutlinePayload(symbols, includeContext);
 		} catch (error) {
 			throw new Error(
 				`Failed to get outline for ${filePath}: ${
@@ -2032,7 +2078,7 @@ EXAMPLES:
 				maxResults: {
 					type: 'number',
 					description:
-						'Optional max results. Defaults: find_references=100, semantic_search=50, text_search=100, file_outline=unlimited.',
+						'Optional max results. Defaults: find_references=100, semantic_search=50, text_search=100, file_outline=200 (hard cap).',
 				},
 			},
 			required: ['action'],

@@ -2,6 +2,7 @@ import * as path from 'path';
 import {ACECodeSearchService} from '../aceCodeSearch.js';
 import {LSPManager} from './LSPManager.js';
 import type {CodeSymbol, CodeReference} from '../types/aceCodeSearch.types.js';
+import {MAX_FILE_OUTLINE_SYMBOLS} from '../utils/aceCodeSearch/constants.utils.js';
 
 export class HybridCodeSearchService {
 	private lspManager: LSPManager;
@@ -173,7 +174,23 @@ export class HybridCodeSearchService {
 			const symbols = await Promise.race([lspPromise, timeoutPromise]);
 
 			if (symbols && symbols.length > 0) {
-				return this.convertLSPSymbolsToCodeSymbols(symbols, filePath);
+				let codeSymbols = this.convertLSPSymbolsToCodeSymbols(
+					symbols,
+					filePath,
+				);
+
+				if (options?.symbolTypes && options.symbolTypes.length > 0) {
+					codeSymbols = codeSymbols.filter(symbol =>
+						options.symbolTypes!.includes(symbol.type),
+					);
+				}
+
+				const maxResults =
+					options?.maxResults && options.maxResults > 0
+						? Math.min(options.maxResults, MAX_FILE_OUTLINE_SYMBOLS)
+						: MAX_FILE_OUTLINE_SYMBOLS;
+
+				return codeSymbols.slice(0, maxResults);
 			}
 		} catch (error) {
 			// LSP failed, fallback to regex
