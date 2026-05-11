@@ -172,13 +172,21 @@ function sortStatusLineItems(
 	});
 }
 
+export type UseStatusLineHookItemsResult = {
+	items: StatusLineRenderItem[];
+	externalHookIds: ReadonlySet<string>;
+};
+
 export function useStatusLineHookItems(
 	context: StatusLineHookContext,
-): StatusLineRenderItem[] {
+): UseStatusLineHookItemsResult {
 	const contextRef = React.useRef(context);
 	const [hookDefinitions, setHookDefinitions] = React.useState(
 		BUILTIN_STATUSLINE_HOOKS,
 	);
+	const [externalHookIds, setExternalHookIds] = React.useState<
+		ReadonlySet<string>
+	>(() => new Set<string>());
 	const [itemsByHookId, setItemsByHookId] = React.useState<
 		Record<string, StatusLineRenderItem[]>
 	>({});
@@ -194,6 +202,7 @@ export function useStatusLineHookItems(
 			const externalHooks = await loadExternalStatusLineHooks();
 			if (!disposed) {
 				setHookDefinitions(mergeStatusLineHooks(externalHooks));
+				setExternalHookIds(new Set<string>(externalHooks.map(hook => hook.id)));
 			}
 		};
 
@@ -274,8 +283,13 @@ export function useStatusLineHookItems(
 		};
 	}, [hookDefinitions]);
 
-	return React.useMemo(
+	const items = React.useMemo(
 		() => sortStatusLineItems(Object.values(itemsByHookId).flat()),
 		[itemsByHookId],
+	);
+
+	return React.useMemo(
+		() => ({items, externalHookIds}),
+		[items, externalHookIds],
 	);
 }

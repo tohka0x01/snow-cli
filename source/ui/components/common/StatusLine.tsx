@@ -12,6 +12,7 @@ import {
 	getActiveProfileName,
 } from '../../../utils/config/configManager.js';
 import {useStatusLineHookItems} from './statusline/useStatusLineHooks.js';
+import {BUILTIN_STATUSLINE_IDS} from './statusline/builtinIds.js';
 import type {
 	BackendConnectionStatus,
 	StatusLineCodebaseProgress,
@@ -421,7 +422,13 @@ export default function StatusLine({
 		watcherEnabled,
 		yoloMode,
 	]);
-	const statusLineHookItems = useStatusLineHookItems(statusLineHookContext);
+	const {items: statusLineHookItems, externalHookIds} = useStatusLineHookItems(
+		statusLineHookContext,
+	);
+	const isBuiltinOverridden = React.useCallback(
+		(id: string) => externalHookIds.has(id),
+		[externalHookIds],
+	);
 
 	const simpleMemoryStatusText = `⛁ ${formattedMemoryUsage}`;
 	const detailedMemoryStatusText = `⛁ ${t.chatScreen.memoryUsageLabel} ${formattedMemoryUsage}`;
@@ -519,7 +526,10 @@ export default function StatusLine({
 	if (simpleMode) {
 		const statusItems: Array<{text: string; color: string}> = [];
 
-		if (currentProfileName) {
+		if (
+			currentProfileName &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.profile)
+		) {
 			statusItems.push({
 				text: `§ ${currentProfileName}`,
 				color: theme.colors.menuInfo,
@@ -533,37 +543,50 @@ export default function StatusLine({
 			});
 		}
 
-		if (yoloMode) {
+		if (yoloMode && !isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modeYolo)) {
 			statusItems.push({text: '⧴ YOLO', color: theme.colors.warning});
 		}
 
-		if (planMode) {
+		if (planMode && !isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modePlan)) {
 			statusItems.push({text: '⚐ Plan', color: '#60A5FA'});
 		}
 
-		if (vulnerabilityHuntingMode) {
+		if (
+			vulnerabilityHuntingMode &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modeHunt)
+		) {
 			statusItems.push({text: '⍨ Vuln Hunt', color: '#de409aff'});
 		}
 
-		if (!toolSearchDisabled) {
+		if (
+			!toolSearchDisabled &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.toolSearch)
+		) {
 			statusItems.push({
 				text: '♾︎ ToolSearch ON',
 				color: theme.colors.menuInfo,
 			});
 		}
 
-		if (teamMode) {
+		if (teamMode && !isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modeTeam)) {
 			statusItems.push({text: '⚑ Team', color: '#10B981'});
 		}
 
-		if (hybridCompressEnabled) {
+		if (
+			hybridCompressEnabled &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.hybridCompress)
+		) {
 			statusItems.push({
 				text: '⇌ Hybrid Compress',
 				color: theme.colors.menuInfo,
 			});
 		}
 
-		if (vscodeConnectionStatus && vscodeConnectionStatus !== 'disconnected') {
+		if (
+			vscodeConnectionStatus &&
+			vscodeConnectionStatus !== 'disconnected' &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.ideConnection)
+		) {
 			if (vscodeConnectionStatus === 'connecting') {
 				statusItems.push({text: '◐ IDE', color: 'yellow'});
 			} else if (vscodeConnectionStatus === 'connected') {
@@ -573,7 +596,11 @@ export default function StatusLine({
 			}
 		}
 
-		if (connectionStatus && connectionStatus !== 'disconnected') {
+		if (
+			connectionStatus &&
+			connectionStatus !== 'disconnected' &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.backendConnection)
+		) {
 			if (connectionStatus === 'connecting') {
 				statusItems.push({text: '◐ Backend', color: 'yellow'});
 			} else if (connectionStatus === 'reconnecting') {
@@ -586,7 +613,11 @@ export default function StatusLine({
 			}
 		}
 
-		if ((codebaseIndexing || codebaseProgress?.error) && codebaseProgress) {
+		if (
+			(codebaseIndexing || codebaseProgress?.error) &&
+			codebaseProgress &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.codebaseIndexing)
+		) {
 			if (codebaseProgress.error) {
 				statusItems.push({
 					text: codebaseProgress.error,
@@ -602,21 +633,31 @@ export default function StatusLine({
 			}
 		}
 
-		if (!codebaseIndexing && watcherEnabled) {
+		if (
+			!codebaseIndexing &&
+			watcherEnabled &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.watcher)
+		) {
 			statusItems.push({
 				text: `☉ ${t.chatScreen.statusWatcherActiveShort || '监视'}`,
 				color: 'green',
 			});
 		}
 
-		if (fileUpdateNotification) {
+		if (
+			fileUpdateNotification &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.fileUpdate)
+		) {
 			statusItems.push({
 				text: `⛁ ${t.chatScreen.statusFileUpdatedShort || '已更新'}`,
 				color: 'yellow',
 			});
 		}
 
-		if (copyStatusMessage) {
+		if (
+			copyStatusMessage &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.copyStatus)
+		) {
 			statusItems.push({
 				text: copyStatusMessage.text,
 				color: copyStatusMessage.isError
@@ -625,17 +666,22 @@ export default function StatusLine({
 			});
 		}
 
-		if (compressBlockToast) {
+		if (
+			compressBlockToast &&
+			!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.compressBlock)
+		) {
 			statusItems.push({
 				text: compressBlockToast,
 				color: theme.colors.warning,
 			});
 		}
 
-		statusItems.push({
-			text: simpleMemoryStatusText,
-			color: theme.colors.menuSecondary,
-		});
+		if (!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.memory)) {
+			statusItems.push({
+				text: simpleMemoryStatusText,
+				color: theme.colors.menuSecondary,
+			});
+		}
 
 		return (
 			<Box flexDirection="column" paddingX={1} marginTop={1}>
@@ -662,14 +708,15 @@ export default function StatusLine({
 		<Box flexDirection="column" paddingX={1}>
 			{contextUsage && <Box>{renderContextUsage()}</Box>}
 
-			{currentProfileName && (
-				<Box>
-					<Text color={theme.colors.menuInfo} dimColor>
-						§ {t.chatScreen.profileCurrent}: {currentProfileName} |{' '}
-						{getProfileShortcut()} {t.chatScreen.profileSwitchHint}
-					</Text>
-				</Box>
-			)}
+			{currentProfileName &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.profile) && (
+					<Box>
+						<Text color={theme.colors.menuInfo} dimColor>
+							§ {t.chatScreen.profileCurrent}: {currentProfileName} |{' '}
+							{getProfileShortcut()} {t.chatScreen.profileSwitchHint}
+						</Text>
+					</Box>
+				)}
 
 			{statusLineHookItems.map(item => (
 				<Box key={item.id}>
@@ -679,13 +726,15 @@ export default function StatusLine({
 				</Box>
 			))}
 
-			<Box>
-				<Text color={theme.colors.menuSecondary} dimColor>
-					{detailedMemoryStatusText}
-				</Text>
-			</Box>
+			{!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.memory) && (
+				<Box>
+					<Text color={theme.colors.menuSecondary} dimColor>
+						{detailedMemoryStatusText}
+					</Text>
+				</Box>
+			)}
 
-			{yoloMode && (
+			{yoloMode && !isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modeYolo) && (
 				<Box>
 					<Text color={theme.colors.warning} dimColor>
 						{t.chatScreen.yoloModeActive}
@@ -693,7 +742,7 @@ export default function StatusLine({
 				</Box>
 			)}
 
-			{planMode && (
+			{planMode && !isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modePlan) && (
 				<Box>
 					<Text color="#60A5FA" dimColor>
 						{t.chatScreen.planModeActive}
@@ -701,23 +750,25 @@ export default function StatusLine({
 				</Box>
 			)}
 
-			{vulnerabilityHuntingMode && (
-				<Box>
-					<Text color="#EF4444" dimColor>
-						{t.chatScreen.vulnerabilityHuntingModeActive}
-					</Text>
-				</Box>
-			)}
+			{vulnerabilityHuntingMode &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modeHunt) && (
+					<Box>
+						<Text color="#EF4444" dimColor>
+							{t.chatScreen.vulnerabilityHuntingModeActive}
+						</Text>
+					</Box>
+				)}
 
-			{!toolSearchDisabled && (
-				<Box>
-					<Text color={theme.colors.menuInfo} dimColor>
-						{t.chatScreen.toolSearchEnabled}
-					</Text>
-				</Box>
-			)}
+			{!toolSearchDisabled &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.toolSearch) && (
+					<Box>
+						<Text color={theme.colors.menuInfo} dimColor>
+							{t.chatScreen.toolSearchEnabled}
+						</Text>
+					</Box>
+				)}
 
-			{teamMode && (
+			{teamMode && !isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.modeTeam) && (
 				<Box>
 					<Text color="#10B981" dimColor>
 						{t.chatScreen.teamModeActive}
@@ -725,15 +776,17 @@ export default function StatusLine({
 				</Box>
 			)}
 
-			{hybridCompressEnabled && (
-				<Box>
-					<Text color={theme.colors.menuInfo} dimColor>
-						{t.chatScreen.hybridCompressEnabled}
-					</Text>
-				</Box>
-			)}
+			{hybridCompressEnabled &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.hybridCompress) && (
+					<Box>
+						<Text color={theme.colors.menuInfo} dimColor>
+							{t.chatScreen.hybridCompressEnabled}
+						</Text>
+					</Box>
+				)}
 
 			{vscodeConnectionStatus &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.ideConnection) &&
 				(vscodeConnectionStatus === 'connecting' ||
 					vscodeConnectionStatus === 'connected' ||
 					vscodeConnectionStatus === 'error') && (
@@ -774,6 +827,7 @@ export default function StatusLine({
 				)}
 
 			{connectionStatus &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.backendConnection) &&
 				(connectionStatus === 'connecting' ||
 					connectionStatus === 'connected' ||
 					connectionStatus === 'reconnecting') && (
@@ -805,73 +859,80 @@ export default function StatusLine({
 					</Box>
 				)}
 
-			{(codebaseIndexing || codebaseProgress?.error) && codebaseProgress && (
-				<Box>
-					{codebaseProgress.error ? (
-						<Text color="red" dimColor>
-							{codebaseProgress.error}
-						</Text>
-					) : (
-						<Text color="cyan" dimColor>
-							<Spinner type="dots" />{' '}
-							{t.chatScreen.codebaseIndexing
-								.replace(
-									'{processed}',
-									codebaseProgress.processedFiles.toString(),
-								)
-								.replace('{total}', codebaseProgress.totalFiles.toString())}
-							{codebaseProgress.totalChunks > 0 &&
-								` (${t.chatScreen.codebaseProgress.replace(
-									'{chunks}',
-									codebaseProgress.totalChunks.toString(),
-								)})`}
-						</Text>
-					)}
-				</Box>
-			)}
-
-			{!codebaseIndexing && watcherEnabled && (
-				<Box>
-					<Text color="green" dimColor>
-						☉ {t.chatScreen.statusWatcherActive}
-					</Text>
-				</Box>
-			)}
-
-			{fileUpdateNotification && (
-				<Box>
-					<Text color="yellow" dimColor>
-						⛁{' '}
-						{t.chatScreen.statusFileUpdated.replace(
-							'{file}',
-							fileUpdateNotification.file,
+			{(codebaseIndexing || codebaseProgress?.error) &&
+				codebaseProgress &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.codebaseIndexing) && (
+					<Box>
+						{codebaseProgress.error ? (
+							<Text color="red" dimColor>
+								{codebaseProgress.error}
+							</Text>
+						) : (
+							<Text color="cyan" dimColor>
+								<Spinner type="dots" />{' '}
+								{t.chatScreen.codebaseIndexing
+									.replace(
+										'{processed}',
+										codebaseProgress.processedFiles.toString(),
+									)
+									.replace('{total}', codebaseProgress.totalFiles.toString())}
+								{codebaseProgress.totalChunks > 0 &&
+									` (${t.chatScreen.codebaseProgress.replace(
+										'{chunks}',
+										codebaseProgress.totalChunks.toString(),
+									)})`}
+							</Text>
 						)}
-					</Text>
-				</Box>
-			)}
+					</Box>
+				)}
 
-			{copyStatusMessage && (
-				<Box>
-					<Text
-						color={
-							copyStatusMessage.isError
-								? theme.colors.error
-								: theme.colors.success
-						}
-						dimColor
-					>
-						{copyStatusMessage.text}
-					</Text>
-				</Box>
-			)}
+			{!codebaseIndexing &&
+				watcherEnabled &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.watcher) && (
+					<Box>
+						<Text color="green" dimColor>
+							☉ {t.chatScreen.statusWatcherActive}
+						</Text>
+					</Box>
+				)}
 
-			{compressBlockToast && (
-				<Box>
-					<Text color={theme.colors.warning} dimColor>
-						{compressBlockToast}
-					</Text>
-				</Box>
-			)}
+			{fileUpdateNotification &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.fileUpdate) && (
+					<Box>
+						<Text color="yellow" dimColor>
+							⛁{' '}
+							{t.chatScreen.statusFileUpdated.replace(
+								'{file}',
+								fileUpdateNotification.file,
+							)}
+						</Text>
+					</Box>
+				)}
+
+			{copyStatusMessage &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.copyStatus) && (
+					<Box>
+						<Text
+							color={
+								copyStatusMessage.isError
+									? theme.colors.error
+									: theme.colors.success
+							}
+							dimColor
+						>
+							{copyStatusMessage.text}
+						</Text>
+					</Box>
+				)}
+
+			{compressBlockToast &&
+				!isBuiltinOverridden(BUILTIN_STATUSLINE_IDS.compressBlock) && (
+					<Box>
+						<Text color={theme.colors.warning} dimColor>
+							{compressBlockToast}
+						</Text>
+					</Box>
+				)}
 		</Box>
 	);
 }

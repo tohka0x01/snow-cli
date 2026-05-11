@@ -78,6 +78,7 @@ export interface StatusLineSystemState {
 		vulnerabilityHunting: boolean;
 		toolSearchEnabled: boolean;
 		hybridCompress: boolean;
+		team: boolean;
 		simple: boolean;
 	};
 	ide: {
