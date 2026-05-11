@@ -31,7 +31,26 @@ _Agentic coding in your terminal_
 
 ![alt text](docs/images/image.png)
 
+![alt text](docs/images/image2.png)
+
 <h3>Recommend using fonts: <a href="https://github.com/SpaceTimee/Fusion-JetBrainsMapleMono">JetBrains Maple Mono NF</a> </3>
+
+<h3>Recommended Terminal Combination for Windows Users</h3>
+
+- **PowerShell 7+**: Modern cross-platform PowerShell, offering stronger features and better compatibility
+  - GitHub: https://github.com/PowerShell/PowerShell
+- **Windows Terminal**: Modern terminal application, supporting multi-tab, split-screen, and GPU accelerated rendering
+  - GitHub: https://github.com/microsoft/terminal
+
+**Installation**:
+
+```bash
+# Install using winget (built-in for Windows 10/11)
+winget install Microsoft.PowerShell
+winget install Microsoft.WindowsTerminal
+
+# Or install using the Microsoft Store
+```
 
 
 ## Documentation

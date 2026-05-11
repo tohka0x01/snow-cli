@@ -31,6 +31,8 @@ _在终端中进行 Agentic 编程_
 
 ![alt text](docs/images/image_zh.png)
 
+![alt text](docs/images/image_zh2.png)
+
 <h3>推荐使用字体：<a href="https://github.com/SpaceTimee/Fusion-JetBrainsMapleMono">JetBrains Maple Mono NF</a> </3>
 
 <h3>Windows 用户推荐终端组合</h3>
