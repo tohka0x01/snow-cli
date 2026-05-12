@@ -258,11 +258,27 @@ export class NextEditEngine implements vscode.Disposable {
 		await this.advance();
 	}
 
-	/** Esc: dismiss. */
+	/** Esc: dismiss. Also cancels any in-flight scan even before a session is established. */
 	public dismiss(reason = 'user'): void {
-		if (!this.session) return;
+		const hadScan = !!this.scanCts;
+		if (!this.session) {
+			// No active candidate session, but a scan may still be in-flight
+			// (e.g. the user pressed Esc, or Next Edit was just disabled, while
+			// the AI request is mid-flight). Cancel the scan and clear the
+			// status bar's spinner so the loading state doesn't get stuck.
+			if (hadScan) {
+				log(`scan cancelled (no session): ${reason}`);
+				this.scanCts?.cancel();
+				this.scanCts?.dispose();
+				this.scanCts = undefined;
+				this.statusBar.setStatus('idle');
+			}
+			return;
+		}
 		log(`session dismissed: ${reason}`);
 		this.scanCts?.cancel();
+		this.scanCts?.dispose();
+		this.scanCts = undefined;
 		this.session = undefined;
 		this.deco.clear();
 		this.statusBar.setStatus('idle');
@@ -272,8 +288,10 @@ export class NextEditEngine implements vscode.Disposable {
 	private async onEdit(edit: RecentEdit, manual = false): Promise<void> {
 		if (!this.config.enabled && !manual) return;
 		this.scanCts?.cancel();
-		this.scanCts = new vscode.CancellationTokenSource();
-		const token = this.scanCts.token;
+		this.scanCts?.dispose();
+		const cts = new vscode.CancellationTokenSource();
+		this.scanCts = cts;
+		const token = cts.token;
 
 		this.statusBar.setStatus('scanning');
 		let candidates: Candidate[];
@@ -281,11 +299,30 @@ export class NextEditEngine implements vscode.Disposable {
 			candidates = await this.finder.find(edit, token);
 		} catch (err) {
 			log(`scan error: ${(err as Error)?.message ?? err}`);
-			this.statusBar.setMessage('scan failed');
-			this.statusBar.setStatus('idle');
+			// Only touch the status bar if our scan is still the active one.
+			// A newer onEdit may have already replaced us and set its own state.
+			if (this.scanCts === cts) {
+				this.scanCts = undefined;
+				this.statusBar.setMessage('scan failed');
+				this.statusBar.setStatus('idle');
+			}
 			return;
 		}
-		if (token.isCancellationRequested) return;
+		if (token.isCancellationRequested) {
+			// We got cancelled (new edit, dismiss, or dispose). If a newer scan
+			// has already taken over (this.scanCts !== cts), leave the status
+			// alone — the newer scan owns it. Otherwise restore idle so the
+			// spinner doesn't stay forever after a silent abort.
+			if (this.scanCts === cts) {
+				this.scanCts = undefined;
+				this.statusBar.setStatus('idle');
+			}
+			return;
+		}
+		// Scan finished naturally; release ownership of the cts.
+		if (this.scanCts === cts) {
+			this.scanCts = undefined;
+		}
 
 		if (candidates.length === 0) {
 			log('no candidates');
