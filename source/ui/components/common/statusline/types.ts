@@ -118,6 +118,8 @@ export interface StatusLineSystemState {
 		geminiThinkingLevel?: string;
 		responsesReasoningEnabled?: boolean;
 		responsesReasoningEffort?: string;
+		chatThinkingEnabled?: boolean;
+		chatReasoningEffort?: string;
 		responsesFastMode?: boolean;
 		responsesVerbosity?: string;
 		anthropicSpeed?: string;

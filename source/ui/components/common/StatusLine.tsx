@@ -370,7 +370,9 @@ export default function StatusLine({
 					maxTokens: cfg?.maxTokens,
 					anthropicBeta: cfg?.anthropicBeta,
 					anthropicCacheTTL: cfg?.anthropicCacheTTL,
-					thinkingEnabled: cfg?.thinking?.type === 'enabled',
+					thinkingEnabled:
+						cfg?.thinking?.type === 'enabled' ||
+						cfg?.thinking?.type === 'adaptive',
 					thinkingType: cfg?.thinking?.type,
 					thinkingBudgetTokens: cfg?.thinking?.budget_tokens,
 					thinkingEffort: cfg?.thinking?.effort,
@@ -378,6 +380,8 @@ export default function StatusLine({
 					geminiThinkingLevel: cfg?.geminiThinking?.thinkingLevel,
 					responsesReasoningEnabled: cfg?.responsesReasoning?.enabled,
 					responsesReasoningEffort: cfg?.responsesReasoning?.effort,
+					chatThinkingEnabled: cfg?.chatThinking?.enabled,
+					chatReasoningEffort: cfg?.chatThinking?.reasoning_effort,
 					responsesFastMode: cfg?.responsesFastMode,
 					responsesVerbosity: cfg?.responsesVerbosity,
 					anthropicSpeed: cfg?.anthropicSpeed,
