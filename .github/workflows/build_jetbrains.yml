@@ -79,7 +79,7 @@ jobs:
 
             ### What's New
 
-            - Add AI-generated git commit message feature
+            - Supports code completion and Tab&Tab AI cross-file suggestions
 
             ### Usage
 

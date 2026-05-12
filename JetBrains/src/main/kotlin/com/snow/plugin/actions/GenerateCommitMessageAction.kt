@@ -7,6 +7,7 @@ import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vcs.VcsDataKeys
 import com.snow.plugin.commit.SnowCommitMessageGenerationService
+import com.snow.plugin.config.SnowBundle
 import icons.SnowPluginIcons
 import java.awt.event.InputEvent
 
@@ -29,8 +30,8 @@ class GenerateCommitMessageAction : DumbAwareAction() {
         val additionalRequirements = if (shouldAskForRequirements) {
             val input = Messages.showInputDialog(
                 project,
-                "Add optional requirements for the generated commit message.",
-                "Snow CLI: Commit Message Requirements",
+                SnowBundle.message("commitMessage.requirementsPrompt"),
+                SnowBundle.message("commitMessage.requirementsTitle"),
                 Messages.getQuestionIcon(),
             ) ?: return
             input.trim().ifEmpty { null }
@@ -59,14 +60,14 @@ class GenerateCommitMessageAction : DumbAwareAction() {
 
         e.presentation.isEnabledAndVisible = project != null && hasCommitMessageTarget
         e.presentation.text = if (isGenerating) {
-            "Cancel Commit Message Generation"
+            SnowBundle.message("commitMessage.cancel")
         } else {
-            "Generate Commit Message"
+            SnowBundle.message("commitMessage.generate")
         }
         e.presentation.description = if (isGenerating) {
-            "Cancel Snow CLI commit message generation"
+            SnowBundle.message("commitMessage.cancelDescription")
         } else {
-            "Generate a commit message with Snow CLI AI. Alt/Option-click to add requirements."
+            SnowBundle.message("commitMessage.generateDescription")
         }
     }
 

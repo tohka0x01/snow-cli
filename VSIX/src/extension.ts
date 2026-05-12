@@ -15,6 +15,8 @@ import {
 } from './terminalProxy';
 import {registerGitBlame} from './gitBlameProvider';
 import {registerCommitMessageCommands} from './commitMessageGenerator';
+import {registerCompletion, disposeCompletion} from './completion';
+import {registerNextEdit, disposeNextEdit} from './nextEdit';
 
 /**
  * Snow CLI Extension
@@ -239,6 +241,20 @@ export function activate(context: vscode.ExtensionContext) {
 		console.error('Failed to register sidebar terminal:', err);
 	}
 
+	// IMPORTANT: register Snow Next Edit Prediction BEFORE Git Blame.
+	// VS Code renders multiple end-of-line `after` decorations in the order
+	// their decoration types were created, and the first registered hover
+	// provider tends to render its card on top. Registering Next Edit first
+	// guarantees:
+	//   1. The Snow Next pill sits closer to the code than the git-blame
+	//      annotation on the same line.
+	//   2. The Snow Next hover card stacks above the git-blame hover card.
+	try {
+		registerNextEdit(context);
+	} catch (err) {
+		console.error('Failed to register Snow Next Edit Prediction:', err);
+	}
+
 	try {
 		registerGitBlame(context);
 	} catch (err) {
@@ -249,6 +265,12 @@ export function activate(context: vscode.ExtensionContext) {
 		registerCommitMessageCommands(context);
 	} catch (err) {
 		console.error('Failed to register commit message generator:', err);
+	}
+
+	try {
+		registerCompletion(context);
+	} catch (err) {
+		console.error('Failed to register Snow inline completion:', err);
 	}
 
 	// 4. 注册命令
@@ -405,6 +427,8 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
 	console.log('Snow CLI extension deactivating...');
 	sidebarProvider?.dispose();
+	disposeCompletion();
+	disposeNextEdit();
 	stopWebSocketServer();
 	console.log('Snow CLI extension deactivated');
 }

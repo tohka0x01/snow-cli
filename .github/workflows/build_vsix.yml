@@ -65,7 +65,7 @@ jobs:
 
             ### What's New
 
-            - Fix the problem of not being able to trigger the system ringtone and add relevant settings
+            - Supports code completion and Tab&Tab AI cross-file suggestions
 
             ### Installation
 

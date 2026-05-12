@@ -13,6 +13,7 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.CommitMessageI
 import com.intellij.vcs.commit.CommitMessageUi
+import com.snow.plugin.config.SnowBundle
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -64,7 +65,7 @@ class SnowCommitMessageGenerationService(private val project: Project) {
         }
         updateActions()
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Snow CLI: Generating commit message", true) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, SnowBundle.message("commitMessage.generating"), true) {
             private var generatedMessage: String? = null
 
             override fun run(indicator: ProgressIndicator) {
@@ -75,7 +76,7 @@ class SnowCommitMessageGenerationService(private val project: Project) {
 
                 val payload = collectDiffPayload(indicator)
                 if (payload.diff.isBlank()) {
-                    notify("Snow CLI: No staged or working tree changes found.", NotificationType.INFORMATION)
+                    notify(SnowBundle.message("commitMessage.noChanges"), NotificationType.INFORMATION)
                     return
                 }
 
@@ -93,7 +94,7 @@ class SnowCommitMessageGenerationService(private val project: Project) {
             }
 
             override fun onCancel() {
-                notify("Snow CLI: Commit message generation stopped.", NotificationType.INFORMATION)
+                notify(SnowBundle.message("commitMessage.stopped"), NotificationType.INFORMATION)
             }
 
             override fun onThrowable(error: Throwable) {
@@ -102,7 +103,7 @@ class SnowCommitMessageGenerationService(private val project: Project) {
                 }
                 logger.warn("Failed to generate commit message", error)
                 notify(
-                    "Snow CLI: Failed to generate commit message. ${error.message ?: error.javaClass.simpleName}",
+                    SnowBundle.message("commitMessage.failed", error.message ?: error.javaClass.simpleName),
                     NotificationType.ERROR,
                 )
             }

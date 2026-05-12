@@ -56,8 +56,9 @@ jobs:
 
             ### What's New
 
-            - Add the /simple command to quickly switch to the simple theme
-            - Add search engine plugins to support more custom search engines
+            - Compatible with the .agents/skills/ directory
+            - Expose all request scheme thinking configurations to StatusLine
+            - Optimize the ace-file-outline tool
             
             ### Installation
             ```bash
