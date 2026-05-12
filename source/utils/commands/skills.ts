@@ -382,30 +382,57 @@ ${cleanedBody}
 `;
 }
 
-// Check if skill name already exists in specified location
+// Check if skill name already exists in specified location.
+// To prevent any conflict with the .agents compatibility directory, we check
+// BOTH `.snow/skills` and `.agents/skills` for the given location and return
+// true if a skill with the same id is present in either of them.
 export function checkSkillExists(
 	skillName: string,
 	location: SkillLocation,
 	projectRoot?: string,
 ): boolean {
-	const skillDir = getSkillDirectory(skillName, location, projectRoot);
-	return existsSync(skillDir);
+	const snowDir = getSkillDirectory(skillName, location, projectRoot);
+	if (existsSync(snowDir)) {
+		return true;
+	}
+
+	const agentsDir = getSkillDirectoryForRoot(
+		skillName,
+		location,
+		'.agents',
+		projectRoot,
+	);
+	return existsSync(agentsDir);
 }
 
-// Get skill directory path
+// Get skill directory path (always under `.snow/skills`, used when CREATING
+// new skills — Snow CLI always writes into its native directory).
 export function getSkillDirectory(
 	skillName: string,
 	location: SkillLocation,
 	projectRoot?: string,
 ): string {
+	return getSkillDirectoryForRoot(skillName, location, '.snow', projectRoot);
+}
+
+// Internal helper that resolves a skill directory under an arbitrary root
+// folder name (e.g. '.snow' or '.agents'). Not exported because Snow CLI
+// only ever creates skills under `.snow`; this exists solely so that
+// checkSkillExists can detect cross-directory collisions.
+function getSkillDirectoryForRoot(
+	skillName: string,
+	location: SkillLocation,
+	rootDirName: string,
+	projectRoot?: string,
+): string {
 	const segments = skillName.split('/').filter(Boolean);
 
 	if (location === 'global') {
-		return join(homedir(), '.snow', 'skills', ...segments);
+		return join(homedir(), rootDirName, 'skills', ...segments);
 	}
 
 	const root = projectRoot || process.cwd();
-	return join(root, '.snow', 'skills', ...segments);
+	return join(root, rootDirName, 'skills', ...segments);
 }
 
 // Generate SKILL.md content
