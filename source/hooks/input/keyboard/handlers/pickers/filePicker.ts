@@ -1,7 +1,7 @@
 import type {HandlerContext} from '../../types.js';
 
 export function filePickerHandler(ctx: HandlerContext): boolean {
-	const {key, options} = ctx;
+	const {input, key, options} = ctx;
 	const {
 		showFilePicker,
 		filteredFileCount,
@@ -9,6 +9,7 @@ export function filePickerHandler(ctx: HandlerContext): boolean {
 		setFileSelectedIndex,
 		fileListRef,
 		handleFileSelect,
+		handleMultipleFileSelect,
 	} = options;
 
 	if (!showFilePicker) return false;
@@ -38,9 +39,43 @@ export function filePickerHandler(ctx: HandlerContext): boolean {
 		return true;
 	}
 
+	// Space - toggle multi-select checkbox on the current item. We deliberately
+	// only intercept a literal " " here (not Ctrl/Meta-space, not IME commits
+	// that happen to start with a space) so the file query input box can still
+	// receive normal spaces when the user is just typing.
+	if (input === ' ' && !key.ctrl && !key.meta && !key.shift) {
+		// toggleSelection returns false for unsupported items (e.g. directories
+		// in file-search mode). In that case, fall through so the space still
+		// reaches the query input as a regular character.
+		if (fileListRef.current?.toggleSelection?.()) {
+			return true;
+		}
+		return false;
+	}
+
 	// Tab or Enter - select file
 	if (key.tab || key.return) {
 		if (filteredFileCount > 0 && fileSelectedIndex < filteredFileCount) {
+			// Multi-select: if any items are checked, insert all of them at
+			// once and clear the checkboxes. Fall back to single-select when
+			// nothing is checked.
+			const multipleFiles = fileListRef.current?.getSelectedFiles?.();
+			if (multipleFiles && multipleFiles.length > 0) {
+				if (handleMultipleFileSelect) {
+					handleMultipleFileSelect(multipleFiles);
+				} else {
+					// Backwards-compatible fallback: insert sequentially.
+					(async () => {
+						for (const file of multipleFiles) {
+							// eslint-disable-next-line no-await-in-loop
+							await handleFileSelect(file);
+						}
+					})();
+				}
+				fileListRef.current?.clearSelections?.();
+				return true;
+			}
+
 			const selectedFile = fileListRef.current?.getSelectedFile();
 			if (selectedFile) {
 				handleFileSelect(selectedFile);

@@ -17,6 +17,7 @@ import {
 import {runningSubAgentTracker} from '../../../utils/execution/runningSubAgentTracker.js';
 import {teamTracker} from '../../../utils/execution/teamTracker.js';
 import {compressionCoordinator} from '../../../utils/core/compressionCoordinator.js';
+import {goalManager} from '../../../utils/task/goalManager.js';
 
 interface MessageTarget {
 	instanceId: string;
@@ -236,6 +237,22 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 				vscodeState.vscodeConnected ? vscodeState.editorContext : undefined,
 			);
 
+			// ── /goal continuation injection ──
+			// 如果当前会话有活跃目标且需要续接，将 continuation prompt
+			// 追加到本轮 messageForAI.content 末尾。该提示词不写入用户消息历史，
+			// 仅作为本轮 AI 输入的一部分，驱动 Ralph Loop。
+			try {
+				const continuationPrompt =
+					await goalManager.consumePendingContinuation();
+				if (continuationPrompt) {
+					messageForAI.content = messageForAI.content
+						? `${messageForAI.content}\n\n${continuationPrompt}`
+						: continuationPrompt;
+				}
+			} catch (err) {
+				console.error('[goal] consumePendingContinuation failed:', err);
+			}
+
 			const saveMessageWithOriginal = async (msg: any) => {
 				if (msg.role === 'user' && optimizedMessage !== originalMessage) {
 					await saveMessage({
@@ -249,6 +266,26 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 						editorContext:
 							msg.role === 'user' ? messageForAI.editorContext : undefined,
 					});
+				}
+			};
+
+			// /goal: 跟踪本轮 token 用量。包装 setContextUsage，每次更新都把
+			// total_tokens 增量累加给 goalManager；超出预算时切到 budget-limited。
+			let lastSeenTotalTokens = 0;
+			const wrappedSetContextUsage = (usage: any) => {
+				streamingState.setContextUsage(usage);
+				try {
+					if (usage && typeof usage.total_tokens === 'number') {
+						const delta = Math.max(0, usage.total_tokens - lastSeenTotalTokens);
+						if (delta > 0) {
+							lastSeenTotalTokens = usage.total_tokens;
+							void goalManager.accrueTokens(delta).catch(err => {
+								console.error('[goal] accrueTokens failed:', err);
+							});
+						}
+					}
+				} catch (err) {
+					console.error('[goal] wrappedSetContextUsage failed:', err);
 				}
 			};
 
@@ -271,7 +308,7 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 					vulnerabilityHuntingMode,
 					teamMode,
 					toolSearchDisabled,
-					setContextUsage: streamingState.setContextUsage,
+					setContextUsage: wrappedSetContextUsage,
 					useBasicModel,
 					getPendingMessages: () => pendingMessagesRef.current,
 					clearPendingMessages: () => setPendingMessages([]),
@@ -303,7 +340,13 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 				setMessages(prev => [...prev, finalMessage]);
 			}
 		} finally {
-			if (userInterruptedRef.current) {
+			// CRITICAL: 必须先用局部变量快照住 userInterruptedRef.current 的值！
+			// 下面的清理逻辑会把它 reset 为 false，之后 goal 续接调度（最末尾）
+			// 如果还读 userInterruptedRef.current，会得到错误的 false，导致 ESC 中断
+			// 后仍然立即触发下一轮续接（典型 bug 现象：用户按 ESC 不能停）。
+			const wasUserInterrupted = userInterruptedRef.current;
+
+			if (wasUserInterrupted) {
 				const session = sessionManager.getCurrentSession();
 				if (session && session.messages.length > 0) {
 					(async () => {
@@ -393,6 +436,46 @@ export function useMessageProcessing(props: UseChatLogicProps) {
 			streamingState.setIsStreaming(false);
 			streamingState.setAbortController(null);
 			streamingState.setStreamTokenCount(0);
+
+			// ── /goal Ralph Loop continuation scheduling ──
+			// 用本轮初始快照的 wasUserInterrupted 判定，避免 ref 已被 reset 的陷阱。
+			// 同时再次校验 goal 当前状态：用户 ESC 时 handleInterrupt 会把 goal 置为
+			// paused，所以即使 wasUserInterrupted 漏判，status !== 'pursuing' 也能兜底。
+			if (!wasUserInterrupted) {
+				void (async () => {
+					try {
+						const current = await goalManager.loadCurrentGoal();
+						if (!current) return;
+						if (current.status === 'pursuing') {
+							await goalManager.markPendingContinuation();
+							// 调度下一轮：用空消息 + hideUserMessage 触发，使续接 prompt 作为唯一输入
+							setTimeout(() => {
+								const ref = processMessageRef.current;
+								if (ref) {
+									void ref('', undefined, false, true).catch(err => {
+										console.error('[goal] auto-continuation failed:', err);
+									});
+								}
+							}, 0);
+						} else if (
+							current.status === 'budget-limited' &&
+							current.pendingContinuation
+						) {
+							// 预算已耗尽，但还有一次 budget_limit 收尾轮次
+							setTimeout(() => {
+								const ref = processMessageRef.current;
+								if (ref) {
+									void ref('', undefined, false, true).catch(err => {
+										console.error('[goal] budget-limit wrap-up failed:', err);
+									});
+								}
+							}, 0);
+						}
+					} catch (err) {
+						console.error('[goal] continuation scheduling failed:', err);
+					}
+				})();
+			}
 		}
 	};
 

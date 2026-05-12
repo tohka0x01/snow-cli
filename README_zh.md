@@ -51,6 +51,7 @@ winget install Microsoft.WindowsTerminal
 
 # 或使用 Microsoft Store 安装
 ```
+
 ## 文档目录
 
 - [安装指南](docs/usage/zh/01.安装指南.md) - 系统要求、安装(更新、卸载)步骤、IDE 扩展安装
@@ -69,7 +70,7 @@ winget install Microsoft.WindowsTerminal
 
 ### 功能指南
 
-- [指令面板说明](docs/usage/zh/09.指令面板说明.md) - 所有可用指令的详细说明、使用技巧、快捷键参考
+- [指令面板说明](docs/usage/zh/09.0.指令面板说明.md) - 所有可用指令的详细说明、使用技巧、快捷键参考（按类目拆分为 09.1~09.7 子文档）
 - [命令注入模式](docs/usage/zh/10.命令注入模式.md) - 消息中直接执行命令、语法说明、安全机制、使用场景
 - [漏洞猎人模式](docs/usage/zh/11.漏洞猎人模式.md) - 专业安全分析、漏洞检测、验证脚本、详细报告
 - [无头模式](docs/usage/zh/12.无头模式.md) - 命令行快速对话、会话管理、脚本集成、第三方工具集成

@@ -47,6 +47,16 @@ export type FileListRef = {
 	// the last filtered result and may want results from deeper directories).
 	// Returns true if a deeper scan was actually scheduled.
 	triggerDeeperSearch: () => boolean;
+	// Toggle current highlighted item's checkbox selection for multi-select.
+	// Returns true if the toggle was performed (item exists and is selectable).
+	toggleSelection: () => boolean;
+	// Return all currently checkbox-selected file paths (already expanded to
+	// absolute / SSH form and with line-number suffix where applicable).
+	// Returns null when nothing is checkbox-selected, so the caller can fall
+	// back to the original single-item flow.
+	getSelectedFiles: () => string[] | null;
+	// Clear all checkbox selections. Used after a successful multi-insert.
+	clearSelections: () => void;
 };
 
 type DisplayMode = 'list' | 'tree';
@@ -241,6 +251,13 @@ const FileList = memo(
 			const [isIncreasingDepth, setIsIncreasingDepth] = useState(false);
 			const [displayMode, setDisplayMode] = useState<DisplayMode>(
 				getFileListDisplayMode,
+			);
+			// Checkbox multi-select: stores the full insertion paths (the exact
+			// string returned by getFullFilePath / with optional :line suffix).
+			// Using the resolved path keeps selections stable when the filtered
+			// list changes underneath the user (e.g. typing narrows results).
+			const [selectedKeys, setSelectedKeys] = useState<Set<string>>(
+				() => new Set(),
 			);
 
 			// Get terminal size for dynamic content display
@@ -578,6 +595,12 @@ const FileList = memo(
 					return;
 				}
 
+				// Every time the panel re-opens we start with a clean
+				// multi-select slate. Without this, ESC-then-reopen would
+				// keep the previous checkboxes — surprising to the user since
+				// the panel visually disappeared in between.
+				setSelectedKeys(prev => (prev.size === 0 ? prev : new Set()));
+
 				// Always reload when becoming visible to ensure fresh data
 				loadFiles();
 			}, [visible, rootPath, loadFiles]);
@@ -599,6 +622,10 @@ const FileList = memo(
 					// Reset depth state so the next open starts shallow again.
 					setSearchDepth(2);
 					setHasMoreDepth(true);
+					// Drop pending multi-select after the panel is fully closed
+					// so the next session starts fresh; quick reopen still keeps
+					// the checks (the timeout has not fired yet).
+					setSelectedKeys(prev => (prev.size === 0 ? prev : new Set()));
 				}, SEARCH_RESULT_TTL_MS);
 
 				return () => clearTimeout(timer);
@@ -779,6 +806,34 @@ const FileList = memo(
 				}
 			}, [displayItems.length, onFilteredCountChange]);
 
+			// Resolve the canonical "insertion path" for a display entry.
+			// Mirrors what `getSelectedFile` returns so that toggleSelection and
+			// getSelectedFiles produce the exact same strings — guaranteeing the
+			// keys in `selectedKeys` map 1:1 with what handleFileSelect will
+			// receive when Enter is pressed.
+			const resolveInsertionPath = useCallback(
+				(entry: DisplayItem): string | null => {
+					if (!entry) {
+						return null;
+					}
+					const fullPath = getFullFilePath(entry.file, rootPath);
+
+					if (entry.file.isDirectory && searchMode === 'file') {
+						const normalizedDirectoryPath = fullPath.replace(/\\/g, '/');
+						return normalizedDirectoryPath.endsWith('/')
+							? normalizedDirectoryPath
+							: `${normalizedDirectoryPath}/`;
+					}
+
+					if (entry.file.lineNumber !== undefined) {
+						return `${fullPath}:${entry.file.lineNumber}`;
+					}
+
+					return fullPath;
+				},
+				[rootPath, searchMode],
+			);
+
 			useImperativeHandle(
 				ref,
 				() => ({
@@ -787,21 +842,7 @@ const FileList = memo(
 						if (!selectedEntry) {
 							return null;
 						}
-
-						const fullPath = getFullFilePath(selectedEntry.file, rootPath);
-
-						if (selectedEntry.file.isDirectory && searchMode === 'file') {
-							const normalizedDirectoryPath = fullPath.replace(/\\/g, '/');
-							return normalizedDirectoryPath.endsWith('/')
-								? normalizedDirectoryPath
-								: `${normalizedDirectoryPath}/`;
-						}
-
-						if (selectedEntry.file.lineNumber !== undefined) {
-							return `${fullPath}:${selectedEntry.file.lineNumber}`;
-						}
-
-						return fullPath;
+						return resolveInsertionPath(selectedEntry);
 					},
 					toggleDisplayMode: () => {
 						if (searchMode !== 'file') {
@@ -830,6 +871,61 @@ const FileList = memo(
 						setTimeout(() => setIsIncreasingDepth(false), 400);
 						return true;
 					},
+					toggleSelection: () => {
+						const selectedEntry = displayItems[normalizedSelectedIndex];
+						if (!selectedEntry) {
+							return false;
+						}
+						// Directories are now allowed in the multi-select set
+						// too; they will be inserted as `@dir/` references on
+						// Enter just like files. Directory drill-down (single
+						// Enter without any checkbox) is still handled by the
+						// fallback path in filePicker.ts.
+						const key = resolveInsertionPath(selectedEntry);
+						if (!key) {
+							return false;
+						}
+						setSelectedKeys(prev => {
+							const next = new Set(prev);
+							if (next.has(key)) {
+								next.delete(key);
+							} else {
+								next.add(key);
+							}
+							return next;
+						});
+						return true;
+					},
+					getSelectedFiles: () => {
+						if (selectedKeys.size === 0) {
+							return null;
+						}
+						// Preserve the on-screen ordering rather than insertion
+						// order so that the inserted text follows the list the
+						// user sees.
+						const ordered: string[] = [];
+						const seen = new Set<string>();
+						for (const entry of displayItems) {
+							const key = resolveInsertionPath(entry);
+							if (key && selectedKeys.has(key) && !seen.has(key)) {
+								ordered.push(key);
+								seen.add(key);
+							}
+						}
+						// Include any selections that no longer match the current
+						// filter (so narrowing the query does not silently lose
+						// them when Enter is pressed).
+						for (const key of selectedKeys) {
+							if (!seen.has(key)) {
+								ordered.push(key);
+								seen.add(key);
+							}
+						}
+						return ordered;
+					},
+					clearSelections: () => {
+						setSelectedKeys(prev => (prev.size === 0 ? prev : new Set()));
+					},
 				}),
 				[
 					displayItems,
@@ -839,6 +935,9 @@ const FileList = memo(
 					hasMoreDepth,
 					isLoading,
 					isIncreasingDepth,
+					displayMode,
+					selectedKeys,
+					resolveInsertionPath,
 				],
 			);
 
@@ -932,7 +1031,14 @@ const FileList = memo(
 							: file.isDirectory
 							? theme.colors.warning
 							: 'white';
-
+						// Every visible entry (files AND directories) gets a
+						// checkbox now — directories that are checked will be
+						// inserted as `@dir/` references on Enter, instead of
+						// drilling into the directory.
+						const itemInsertionKey = resolveInsertionPath(item);
+						const isChecked =
+							itemInsertionKey !== null && selectedKeys.has(itemInsertionKey);
+						const checkbox = isChecked ? '[✓] ' : '[ ] ';
 						return (
 							<Box key={item.key} flexDirection="column">
 								<Text
@@ -943,6 +1049,7 @@ const FileList = memo(
 									dimColor={Boolean(item.isContextOnly && !isSelected)}
 								>
 									{isSelected ? '❯ ' : '  '}
+									{checkbox}
 									{searchMode === 'content'
 										? item.label
 										: `${prefix}${item.label}`}
@@ -1023,6 +1130,21 @@ const FileList = memo(
 								</Text>
 							</Box>
 						)}
+					{/* Multi-select hint + count summary. Space toggles the
+					    checkbox on the current item; pressing Enter inserts
+					    every checked item separated by a space. */}
+					{displayItems.length > 0 && (
+						<Box>
+							<Text color={theme.colors.menuSecondary} dimColor>
+								{selectedKeys.size > 0
+									? t.fileList.multiSelectActiveHint.replace(
+											'{count}',
+											selectedKeys.size.toString(),
+									  )
+									: t.fileList.multiSelectHint}
+							</Text>
+						</Box>
+					)}
 				</Box>
 			);
 		},

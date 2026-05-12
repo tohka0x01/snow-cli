@@ -52,7 +52,6 @@ winget install Microsoft.WindowsTerminal
 # Or install using the Microsoft Store
 ```
 
-
 ## Documentation
 
 - [Installation Guide](docs/usage/en/01.Installation%20Guide.md) - System requirements, installation (update, uninstall) steps, IDE extension installation
@@ -71,7 +70,7 @@ winget install Microsoft.WindowsTerminal
 
 ### Feature Guide
 
-- [Command Panel Guide](docs/usage/en/09.Command%20Panel%20Guide.md) - Detailed description of all available commands, usage tips, shortcut key reference
+- [Command Panel Guide](docs/usage/en/09.0.Command%20Panel%20Guide.md) - Detailed description of all available commands, usage tips, shortcut key reference (split into 09.1~09.7 sub-documents by category)
 - [Command Injection Mode](docs/usage/en/10.Command%20Injection%20Mode.md) - Execute commands directly in messages, syntax explanation, security mechanisms, use cases
 - [Vulnerability Hunting Mode](docs/usage/en/11.Vulnerability%20Hunting%20Mode.md) - Professional security analysis, vulnerability detection, verification scripts, detailed reports
 - [Headless Mode](docs/usage/en/12.Headless%20Mode.md) - Command line quick conversations, session management, script integration, third-party tool integration

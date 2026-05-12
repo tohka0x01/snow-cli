@@ -12,6 +12,7 @@ import {
 	clearAllTeammateStreamEntries,
 	clearAllSubAgentStreamEntries,
 } from './core/subAgentMessageHandler.js';
+import {goalManager} from '../../utils/task/goalManager.js';
 
 export type {UseChatLogicProps};
 
@@ -181,6 +182,16 @@ export function useChatLogic(props: UseChatLogicProps) {
 		clearAllSubAgentStreamEntries();
 		setMessages(prev => prev.filter(msg => !msg.toolPending));
 		setPendingMessages([]);
+
+		// /goal Ralph Loop: 用户按 ESC 中断时，把当前 goal 置为 paused，
+		// 这样 useMessageProcessing finally 块即使因 ref reset 误判也不会重启循环。
+		// 后续可用 /goal resume 恢复，符合 Codex CLI "pause/resume 仅用户可控" 的设计。
+		void goalManager
+			.pauseGoal()
+			.catch(err =>
+				console.error('[goal] pauseGoal on interrupt failed:', err),
+			);
+
 		return true;
 	}, [streamingState, setMessages, setPendingMessages, t]);
 

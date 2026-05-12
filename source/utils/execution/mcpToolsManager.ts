@@ -17,6 +17,7 @@ import {mcpTools as ideDiagnosticsTools} from '../../mcp/ideDiagnostics.js';
 import {mcpTools as codebaseSearchTools} from '../../mcp/codebaseSearch.js';
 import {mcpTools as askUserQuestionTools} from '../../mcp/askUserQuestion.js';
 import {mcpTools as schedulerTools} from '../../mcp/scheduler.js';
+import {mcpTools as goalMcpTools, executeGoalTool} from '../../mcp/goal.js';
 import {TodoService} from '../../mcp/todo.js';
 import {
 	mcpTools as notebookTools,
@@ -145,6 +146,7 @@ export function getRegisteredServicePrefixes(): string[] {
 		'codebase-',
 		'askuser-',
 		'scheduler-',
+		'goal-',
 		'skill-',
 		'subagent-',
 	];
@@ -186,6 +188,10 @@ async function generateConfigHash(): Promise<string> {
 		const codebaseConfig = loadCodebaseConfig();
 
 		const {getTeamMode} = await import('../config/projectSettings.js');
+		// 把当前会话的 goal 绑定状态纳入 hash：会话切换或 hasGoal 翻转时，
+		// 缓存失效 -> 重建工具列表 -> goal- 工具按需出现/消失。
+		const sessionHasGoal = !!sessionManager.getCurrentSession()?.hasGoal;
+		const sessionId = sessionManager.getCurrentSession()?.id || '';
 		return JSON.stringify({
 			mcpServers: mcpConfig.mcpServers,
 			subAgents: subAgents.map(t => t.name),
@@ -196,6 +202,8 @@ async function generateConfigHash(): Promise<string> {
 			disabledMCPTools: getDisabledMCPTools(),
 			optInEnabledMCPTools: getOptInEnabledMCPKeysMerged(),
 			teamMode: getTeamMode(),
+			sessionHasGoal,
+			sessionId,
 		});
 	} catch {
 		return '';
@@ -327,6 +335,27 @@ async function refreshToolsCache(): Promise<void> {
 		inputSchema: tool.function.parameters,
 	}));
 	addBuiltInService('scheduler', schedulerToolsNormalized, 'scheduler');
+
+	// Add built-in Goal tools (/goal Ralph Loop)
+	// ⚠️ 重要：goal- 工具只在【当前会话绑定了未完结目标】时才注册。
+	// 判定来源是 session.hasGoal（由 goalManager.createGoal / resumeGoal 设置，
+	// clearGoal / modelUpdateGoal(achieved|unmet) 撤销）。
+	// 这样可以：
+	// 1) 普通对话/会话面板里 AI 看不到 goal-update_goal，避免误用
+	// 2) /goal 创建/恢复目标后立刻在本会话生效
+	// 3) 切换会话（/resume <id>）时基于新会话的 hasGoal 自动决定是否暴露
+	//
+	// 配合：configHash 把 hasGoal 纳入计算（见 generateConfigHash），
+	// hasGoal 变化时缓存失效，重建一次工具列表。
+	const currentSession = sessionManager.getCurrentSession();
+	if (currentSession?.hasGoal) {
+		const goalToolsNormalized = goalMcpTools.map(tool => ({
+			name: tool.function.name,
+			description: tool.function.description,
+			inputSchema: tool.function.parameters,
+		}));
+		addBuiltInService('goal', goalToolsNormalized, 'goal');
+	}
 
 	// Add sub-agent tools (dynamically generated from configuration)
 	const subAgentTools = getSubAgentTools();
@@ -1195,6 +1224,9 @@ export async function executeMCPTool(
 		} else if (toolName.startsWith('scheduler-')) {
 			serviceName = 'scheduler';
 			actualToolName = toolName.substring('scheduler-'.length);
+		} else if (toolName.startsWith('goal-')) {
+			serviceName = 'goal';
+			actualToolName = toolName.substring('goal-'.length);
 		} else if (toolName.startsWith('skill-')) {
 			serviceName = 'skill';
 			actualToolName = toolName.substring('skill-'.length);
@@ -1243,6 +1275,7 @@ export async function executeMCPTool(
 			'codebase',
 			'askuser',
 			'scheduler',
+			'goal',
 			'skill',
 			'subagent',
 		];
@@ -1267,6 +1300,9 @@ export async function executeMCPTool(
 		if (serviceName === 'todo') {
 			// Handle built-in TODO tools (no connection needed)
 			result = await getTodoService().executeTool(actualToolName, args);
+		} else if (serviceName === 'goal') {
+			// Handle built-in Goal tools (/goal Ralph Loop)
+			result = await executeGoalTool(actualToolName, args);
 		} else if (serviceName === 'notebook') {
 			// Handle built-in Notebook tools (no connection needed)
 			result = await executeNotebookTool(actualToolName, args);

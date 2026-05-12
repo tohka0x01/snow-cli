@@ -399,6 +399,13 @@ type CommandHandlerOptions = {
 	setCompressionError: React.Dispatch<React.SetStateAction<string | null>>;
 	setShowSessionPanel: React.Dispatch<React.SetStateAction<boolean>>;
 	onResumeSessionById?: (sessionId: string) => Promise<void>;
+	/** /goal resume 弹出列表用 */
+	setShowGoalSessionPanel: React.Dispatch<React.SetStateAction<boolean>>;
+	/**
+	 * /goal resume <sessionId> 直接定位的回调：
+	 * 与 onResumeSessionById 区别——除了切换会话，还会启动 Ralph Loop 第一轮。
+	 */
+	onResumeGoalSession?: (sessionId: string) => Promise<void>;
 	setShowConnectionPanel: React.Dispatch<React.SetStateAction<boolean>>;
 	setConnectionPanelApiUrl: React.Dispatch<
 		React.SetStateAction<string | undefined>
@@ -655,6 +662,27 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 					commandName: commandName,
 				};
 				options.setMessages(prev => [...prev, commandMessage]);
+			} else if (result.success && result.action === 'showGoalSessionPanel') {
+				// /goal resume：带 sessionId 直接定位、不带就弹面板让用户挑
+				// （详见 source/utils/commands/goal.ts 中 'resume' 分支的说明）
+				if (result.sessionId && options.onResumeGoalSession) {
+					// 把命令摘要插入消息历史，再走 ChatScreen 的恢复+启动循环路径
+					const commandMessage: Message = {
+						role: 'command',
+						content: result.message || '',
+						commandName: commandName,
+					};
+					options.setMessages(prev => [...prev, commandMessage]);
+					await options.onResumeGoalSession(result.sessionId);
+				} else {
+					options.setShowGoalSessionPanel(true);
+					const commandMessage: Message = {
+						role: 'command',
+						content: '',
+						commandName: commandName,
+					};
+					options.setMessages(prev => [...prev, commandMessage]);
+				}
 			} else if (result.success && result.action === 'showDiffReviewPanel') {
 				options.setShowDiffReviewPanel(true);
 			} else if (result.success && result.action === 'showConnectionPanel') {
@@ -1154,6 +1182,30 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 				options.setMessages(prev => [...prev, commandMessage]);
 				// Auto-send the prompt using basicModel, hide the prompt from UI
 				options.processMessage(result.prompt, undefined, true, true);
+			} else if (
+				result.success &&
+				result.action === 'startGoalLoop' &&
+				result.prompt
+			) {
+				// /goal <objective> 创建后立刻启动 Ralph Loop 第一轮。
+				// goalManager.createGoal 已把 pendingContinuation 置为 true，
+				// processMessage 入口会消费 continuation prompt 作为本轮 AI 输入额外注入。
+				//
+				// 设计要点（避免之前 Bug：用户中断后无法 ESC 回滚到 /goal 之前）：
+				// 1) command 消息：显示 goal id + budget + 操作提示（不含完整 objective）
+				// 2) 第一轮启用 hideUserMessage=false，让 result.prompt（用户的目标原文）
+				//    作为可见 user 消息进入会话历史，这样：
+				//    - 双击 ESC 历史导航能定位到这条消息进行回滚
+				//    - 历史菜单中能直观看到用户当初设的目标
+				//    - 与 /review、/deepresearch 的设计模式保持一致
+				const commandMessage: Message = {
+					role: 'command',
+					content: result.message || '',
+					commandName: commandName,
+				};
+				options.setMessages(prev => [...prev, commandMessage]);
+				// useBasicModel=false（用高级模型），hideUserMessage=false（目标作为可见 user 消息）
+				options.processMessage(result.prompt, undefined, false, false);
 			} else if (
 				result.success &&
 				result.action === 'review' &&

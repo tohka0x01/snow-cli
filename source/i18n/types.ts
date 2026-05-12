@@ -574,6 +574,7 @@ export type TranslationKeys = {
 			home: string;
 			review: string;
 			gitline: string;
+			goal: string;
 			role: string;
 			roleSubagent: string;
 			usage: string;
@@ -672,6 +673,43 @@ export type TranslationKeys = {
 				sessionScopedNote: string;
 				usageHint: string;
 			};
+			// Goal command messages
+			goal: {
+				noActiveGoal: string;
+				noActiveGoalInSession: string;
+				usageHeader: string;
+				usageObjective: string;
+				usageBudget: string;
+				usagePause: string;
+				usageResume: string;
+				usageResumeSession: string;
+				usageClear: string;
+				usageStatus: string;
+				tipHeader: string;
+				tipGood: string;
+				tipBad: string;
+				currentGoal: string;
+				noActiveGoalToPause: string;
+				pauseSuccess: string; // {id}
+				resumingSession: string; // {sessionId}
+				noGoalToResume: string;
+				cannotResumeStatus: string; // {status}
+				resumeSuccess: string; // {id}
+				resumeHint: string;
+				openSessionPicker: string;
+				noActiveGoalToClear: string;
+				clearSuccess: string; // {id}
+				created: string; // {id}
+				tokenBudget: string; // {budget}
+				createHint: string;
+				createFailed: string; // {error}
+				unknownError: string;
+				invalidUsage: string;
+				budgetUnlimited: string;
+				budgetMillion: string; // {value}
+				budgetThousand: string; // {value}
+				budgetTokens: string; // {value}
+			};
 		};
 	};
 	// File search list (`@` panel)
@@ -686,6 +724,13 @@ export type TranslationKeys = {
 		// Hint shown at the bottom of the list when more directories are still
 		// available to scan, telling the user how to trigger a deeper search.
 		deeperSearchHint: string;
+		// Multi-select hint shown when no files are checked yet (instructs the
+		// user that Space toggles the checkbox and Enter inserts all checked
+		// items together).
+		multiSelectHint: string;
+		// Multi-select hint shown after at least one file has been checked.
+		// {count} is the number of currently checked items.
+		multiSelectActiveHint: string;
 		// Header labels
 		contentSearchHeader: string;
 		filesHeader: string; // {mode}

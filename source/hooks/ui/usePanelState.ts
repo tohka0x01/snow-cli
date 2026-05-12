@@ -8,6 +8,8 @@ import {
 
 export type PanelState = {
 	showSessionPanel: boolean;
+	// /goal resume 弹出的会话列表（与 showSessionPanel 互斥，独立状态便于 ESC 关闭和样式区分）
+	showGoalSessionPanel: boolean;
 	showMcpPanel: boolean;
 	showUsagePanel: boolean;
 	showHelpPanel: boolean;
@@ -42,6 +44,7 @@ export type PanelState = {
 
 export type PanelActions = {
 	setShowSessionPanel: Dispatch<SetStateAction<boolean>>;
+	setShowGoalSessionPanel: Dispatch<SetStateAction<boolean>>;
 	setShowMcpPanel: Dispatch<SetStateAction<boolean>>;
 	setShowUsagePanel: Dispatch<SetStateAction<boolean>>;
 	setShowHelpPanel: Dispatch<SetStateAction<boolean>>;
@@ -92,6 +95,8 @@ export type PanelActions = {
 
 export function usePanelState(): PanelState & PanelActions {
 	const [showSessionPanel, setShowSessionPanel] = useState(false);
+	// /goal resume 专属面板状态——与 showSessionPanel 互斥但独立持有
+	const [showGoalSessionPanel, setShowGoalSessionPanel] = useState(false);
 	const [showMcpPanel, setShowMcpPanel] = useState(false);
 	const [showUsagePanel, setShowUsagePanel] = useState(false);
 	const [showHelpPanel, setShowHelpPanel] = useState(false);
@@ -226,6 +231,10 @@ export function usePanelState(): PanelState & PanelActions {
 			setShowSessionPanel(false);
 			return true;
 		}
+		if (showGoalSessionPanel) {
+			setShowGoalSessionPanel(false);
+			return true;
+		}
 		if (showMcpPanel) {
 			// Let MCPInfoPanel handle ESC internally (tool list page vs main page)
 			return false;
@@ -354,6 +363,7 @@ export function usePanelState(): PanelState & PanelActions {
 	const isAnyPanelOpen = (): boolean => {
 		return (
 			showSessionPanel ||
+			showGoalSessionPanel ||
 			showMcpPanel ||
 			showUsagePanel ||
 			showCustomCommandConfig ||
@@ -383,6 +393,7 @@ export function usePanelState(): PanelState & PanelActions {
 	return {
 		// State
 		showSessionPanel,
+		showGoalSessionPanel,
 		showMcpPanel,
 		showUsagePanel,
 		showHelpPanel,
@@ -414,6 +425,7 @@ export function usePanelState(): PanelState & PanelActions {
 		currentProfileName,
 		// Actions
 		setShowSessionPanel,
+		setShowGoalSessionPanel,
 		setShowMcpPanel,
 		setShowUsagePanel,
 		setShowHelpPanel,

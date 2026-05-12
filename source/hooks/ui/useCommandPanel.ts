@@ -37,6 +37,7 @@ export const COMMAND_ARGS_HINTS: Record<string, string> = {
 	simple: '[on|off|status]',
 	'add-dir': '[path]',
 	loop: '<interval> <prompt> | list | tasks | cancel <id>',
+	goal: '<objective> [--budget=N] | pause | resume | clear | status',
 	role: '[-l|--list | -d|--delete]',
 	skills: '[-l|--list]',
 	'role-subagent': '[-l|--list | -d|--delete]',
@@ -116,6 +117,12 @@ export function useCommandPanel(buffer: TextBuffer, isProcessing = false) {
 				description:
 					t.commandPanel.commands.gitline ||
 					'Select git commits and insert them into the chat input',
+			},
+			{
+				name: 'goal',
+				description:
+					t.commandPanel.commands.goal ||
+					'Set a persistent goal that drives auto-continuation (Ralph Loop)',
 			},
 			{
 				name: 'role',

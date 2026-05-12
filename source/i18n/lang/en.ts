@@ -616,6 +616,7 @@ export const en: TranslationKeys = {
 				'Review changes in the working tree and selected commits. Opens a picker panel where you can select items and add notes.',
 			gitline:
 				'Select git commits and insert their content into the current chat input',
+			goal: 'Set a persistent goal that drives the AI to auto-continue until achieved, unmet, or budget-exhausted. Usage: /goal <objective> | /goal pause | /goal resume | /goal clear | /goal status',
 			role: 'Open or create ROLE.md file to customize AI assistant role. Use -l or --list to list all roles',
 			roleSubagent:
 				'Customize sub-agent prompts with ROLE-{name}.md files. Use -l to list, -d to delete',
@@ -734,6 +735,53 @@ export const en: TranslationKeys = {
 				usageHint:
 					'Use /loop list to inspect jobs or /loop cancel <id> to stop one.',
 			},
+			// Goal command messages
+			goal: {
+				noActiveGoal: 'No active goal.',
+				noActiveGoalInSession: 'No active goal in this session.',
+				usageHeader: 'Usage:',
+				usageObjective:
+					'  /goal <objective>            Create and start a new persistent goal',
+				usageBudget:
+					'  /goal <objective> --budget=N Set token budget (default 2,000,000)',
+				usagePause: '  /goal pause                  Pause the active goal',
+				usageResume:
+					'  /goal resume                 Open goal session picker (or resume current paused goal)',
+				usageResumeSession:
+					'  /goal resume <sessionId>     Resume the goal of a specific session directly',
+				usageClear: '  /goal clear                  Clear the active goal',
+				usageStatus: '  /goal status                 Show current goal summary',
+				tipHeader:
+					'Tip: Write objectives as verifiable contracts, not vague wishes.',
+				tipGood:
+					'  Good: "Refactor src/auth/login.ts to async/await; verify with npm test"',
+				tipBad: '  Bad:  "Improve the repo"',
+				currentGoal: 'Current goal:',
+				noActiveGoalToPause: 'No active goal to pause.',
+				pauseSuccess:
+					'Goal {id} paused. The loop will not auto-continue. Use /goal resume to reactivate.',
+				resumingSession: 'Resuming goal session {sessionId}...',
+				noGoalToResume: 'No goal to resume.',
+				cannotResumeStatus:
+					'Cannot resume goal in status "{status}". Use /goal clear to start over.',
+				resumeSuccess: 'Goal {id} resumed (status: pursuing).',
+				resumeHint: 'Press ESC to pause. Use /goal clear to abort.',
+				openSessionPicker: 'Open goal session picker.',
+				noActiveGoalToClear: 'No active goal to clear.',
+				clearSuccess: 'Goal {id} cleared. Session returns to single-turn chat.',
+				created: 'Goal {id} created and pursuing.',
+				tokenBudget: 'Token budget: {budget}',
+				createHint:
+					'Press ESC to pause. Use /goal resume to continue, /goal clear to abort.',
+				createFailed: 'Failed to create goal: {error}',
+				unknownError: 'unknown error',
+				invalidUsage:
+					'Invalid /goal usage. Run /goal without arguments to see usage hints.',
+				budgetUnlimited: 'unlimited',
+				budgetMillion: '{value}M tokens',
+				budgetThousand: '{value}K tokens',
+				budgetTokens: '{value} tokens',
+			},
 		},
 	},
 	fileList: {
@@ -744,6 +792,9 @@ export const en: TranslationKeys = {
 		scanningDeeper: 'Searching deeper (depth {depth}, {count} indexed)...',
 		deeperSearchHint:
 			'More directories not scanned · press ↓ on the last item to search deeper',
+		multiSelectHint:
+			'Space toggle · Enter insert · select multiple files at once',
+		multiSelectActiveHint: '{count} selected · Space toggle · Enter insert all',
 		contentSearchHeader: '≡ Content Search',
 		filesHeader: '≡ Files [{mode} • Ctrl+T]',
 		treeMode: 'Tree',

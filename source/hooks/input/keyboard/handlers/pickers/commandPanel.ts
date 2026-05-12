@@ -127,8 +127,9 @@ export function commandPanelHandler(ctx: HandlerContext): boolean {
 				// Execute command instead of inserting text
 				// If the user has typed args after the command name (e.g. "/role -l"),
 				// pass them through so sub-commands work from the command panel.
+				// 使用 [\s\S] 而不是 . 让参数可以跨多行（如 /goal 多行需求）。
 				const fullText = buffer.getFullText();
-				const commandMatch = fullText.match(/^\/([^\s]+)(?:\s+(.+))?$/);
+				const commandMatch = fullText.match(/^\/(\S+)(?:\s+([\s\S]+))?$/);
 				const commandArgs = commandMatch?.[2];
 				executeCommand(selectedCommand.name, commandArgs).then(result => {
 					// Record command usage for frequency-based sorting

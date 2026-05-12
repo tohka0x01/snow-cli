@@ -11,9 +11,21 @@ import {useTerminalSize} from '../../../hooks/ui/useTerminalSize.js';
 type Props = {
 	onSelectSession: (sessionId: string) => void;
 	onClose: () => void;
+	/**
+	 * /goal resume 专用模式：
+	 * - true：只显示带 hasGoal=true 且 goalStatus 可恢复的会话（paused/pursuing/budget-limited），
+	 *   且禁用 R 键重命名、删除、搜索这些会扰动会话的功能（保持本面板只读用于挑选）。
+	 *   每条会话额外渲染 goalStatus + 简短 objective。
+	 * - false / undefined：常规 /resume 面板，全功能。
+	 */
+	goalOnly?: boolean;
 };
 
-export default function SessionListPanel({onSelectSession, onClose}: Props) {
+export default function SessionListPanel({
+	onSelectSession,
+	onClose,
+	goalOnly = false,
+}: Props) {
 	const {t} = useI18n();
 	const {theme} = useTheme();
 	const {columns: terminalWidth} = useTerminalSize();
@@ -60,6 +72,28 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 		const loadSessions = async () => {
 			setLoading(true);
 			try {
+				// goalOnly 模式走专用 API（不分页，因为 goal 会话本身数量很少），
+				// 并按搜索词在内存里过滤。
+				if (goalOnly) {
+					const all = await sessionManager.listGoalResumableSessions();
+					const q = debouncedSearch.trim().toLowerCase();
+					const filtered = q
+						? all.filter(
+								s =>
+									s.title.toLowerCase().includes(q) ||
+									(s.summary || '').toLowerCase().includes(q) ||
+									s.id.toLowerCase().includes(q) ||
+									(s.goalObjective || '').toLowerCase().includes(q),
+						  )
+						: all;
+					setSessions(filtered);
+					setHasMore(false);
+					setTotalCount(filtered.length);
+					setCurrentPage(0);
+					setSelectedIndex(0);
+					setScrollOffset(0);
+					return;
+				}
 				const result = await sessionManager.listSessionsPaginated(
 					0,
 					PAGE_SIZE,
@@ -80,7 +114,7 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 		};
 
 		void loadSessions();
-	}, [debouncedSearch]);
+	}, [debouncedSearch, goalOnly]);
 
 	const loadMoreSessions = useCallback(async () => {
 		if (loadingMore || !hasMore) return;
@@ -231,6 +265,8 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 		}
 
 		if (input === ' ') {
+			// goalOnly 模式下不允许标记选择（避免误删 goal 关键会话）
+			if (goalOnly) return;
 			const currentSession = sessions[selectedIndex];
 			if (currentSession) {
 				setMarkedSessions(prev => {
@@ -243,6 +279,11 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 					return next;
 				});
 			}
+			return;
+		}
+
+		if ((input === 'd' || input === 'D') && goalOnly) {
+			// goalOnly 模式下禁用删除：本面板仅用于挑选要恢复的目标。
 			return;
 		}
 
@@ -305,6 +346,8 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 		}
 
 		if (input === 'r' || input === 'R') {
+			// goalOnly 模式下禁用重命名：本面板仅用于挑选。
+			if (goalOnly) return;
 			const currentSession = sessions[selectedIndex];
 			if (currentSession) {
 				setRenamingSessionId(currentSession.id);
@@ -353,7 +396,8 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 			</Box>
 			<Box flexDirection="column">
 				<Text color={theme.colors.menuInfo} bold>
-					{t.sessionListPanel.title} ({selectedIndex + 1}/{sessions.length}
+					{goalOnly ? '/goal resume' : t.sessionListPanel.title} (
+					{selectedIndex + 1}/{sessions.length}
 					{totalCount > sessions.length && ` of ${totalCount}`})
 					{currentSession &&
 						` • ${
@@ -469,6 +513,21 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 								? cleanTitle.slice(0, 47) + '...'
 								: cleanTitle;
 
+						// goalOnly 模式：额外渲染 goalStatus + objective 摘要，
+						// 用 dimColor 视觉上和会话标题区分开。
+						const goalSuffix =
+							goalOnly && session.goalStatus
+								? ` [${session.goalStatus}${
+										session.goalObjective
+											? ` • ${
+													session.goalObjective.length > 40
+														? session.goalObjective.slice(0, 37) + '...'
+														: session.goalObjective
+											  }`
+											: ''
+								  }]`
+								: '';
+
 						return (
 							<Box key={session.id}>
 								<Text
@@ -501,6 +560,7 @@ export default function SessionListPanel({onSelectSession, onClose}: Props) {
 								<Text color={theme.colors.menuSecondary} dimColor>
 									{' '}
 									• {timeStr}
+									{goalSuffix}
 								</Text>
 							</Box>
 						);

@@ -70,7 +70,9 @@ export function submitHandler(ctx: HandlerContext): boolean {
 		// Check if message is a command with arguments (e.g., /review [note])
 		if (message.startsWith('/')) {
 			// Support namespaced slash commands like /folder:command
-			const commandMatch = message.match(/^\/([^\s]+)(?:\s+(.+))?$/);
+			// 注意：使用 [\s\S] 而不是 .，以便参数可以跨越多行（如 /goal 多行需求）。
+			// 同时使用 \s+ 作为命令名与参数的分隔（包含换行），保证 /goal\n<objective> 也能命中。
+			const commandMatch = message.match(/^\/(\S+)(?:\s+([\s\S]+))?$/);
 			if (commandMatch && commandMatch[1]) {
 				const commandName = commandMatch[1];
 				const commandArgs = commandMatch[2];
@@ -184,10 +186,7 @@ export function submitHandler(ctx: HandlerContext): boolean {
 		// Save to persistent history
 		saveToHistory(message);
 
-		onSubmit(
-			markedMessage,
-			validImages.length > 0 ? validImages : undefined,
-		);
+		onSubmit(markedMessage, validImages.length > 0 ? validImages : undefined);
 	}
 	return true;
 }

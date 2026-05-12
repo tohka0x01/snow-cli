@@ -580,6 +580,7 @@ export const zh: TranslationKeys = {
 			home: '返回欢迎屏幕修改设置',
 			review: '审查工作区变更与选定提交。会打开选择面板，可多选并输入备注。',
 			gitline: '选择 Git 提交记录并将提交内容插入到当前输入框',
+			goal: '设置可持久化目标，驱动 AI 自动续接直到达成或耗尽预算。用法: /goal <目标> | /goal pause | /goal resume | /goal clear | /goal status',
 			role: '打开或创建 ROLE.md 文件以自定义 AI 助手角色。使用 -l 或 --list 参数列出所有角色',
 			roleSubagent:
 				'为子代理自定义前置提示词 (ROLE-名字.md)。使用 -l 列出，-d 删除',
@@ -689,6 +690,50 @@ export const zh: TranslationKeys = {
 				usageHint:
 					'使用 /loop list 查看任务，或使用 /loop cancel <id> 停止某个任务。',
 			},
+			// Goal 命令消息
+			goal: {
+				noActiveGoal: '当前没有活跃目标。',
+				noActiveGoalInSession: '当前会话没有活跃目标。',
+				usageHeader: '用法:',
+				usageObjective:
+					'  /goal <目标>                 创建并启动一个新的可持久化目标',
+				usageBudget:
+					'  /goal <目标> --budget=N      设置 Token 预算（默认 2,000,000）',
+				usagePause: '  /goal pause                  暂停当前活跃的目标',
+				usageResume:
+					'  /goal resume                 打开目标会话选择面板（或恢复当前已暂停的目标）',
+				usageResumeSession:
+					'  /goal resume <会话ID>        直接恢复指定会话的目标',
+				usageClear: '  /goal clear                  清除当前活跃目标',
+				usageStatus: '  /goal status                 查看当前目标摘要',
+				tipHeader: '提示: 把目标写成可验证的契约，而不是模糊的愿望。',
+				tipGood:
+					'  推荐: "把 src/auth/login.ts 重构为 async/await；用 npm test 验证"',
+				tipBad: '  避免: "改进一下这个仓库"',
+				currentGoal: '当前目标:',
+				noActiveGoalToPause: '没有可暂停的活跃目标。',
+				pauseSuccess:
+					'目标 {id} 已暂停。循环不会自动续接。使用 /goal resume 重新激活。',
+				resumingSession: '正在恢复目标会话 {sessionId}...',
+				noGoalToResume: '没有可恢复的目标。',
+				cannotResumeStatus:
+					'无法恢复处于状态 "{status}" 的目标。请使用 /goal clear 重新开始。',
+				resumeSuccess: '目标 {id} 已恢复（状态: pursuing）。',
+				resumeHint: '按 ESC 暂停。使用 /goal clear 中止。',
+				openSessionPicker: '打开目标会话选择面板。',
+				noActiveGoalToClear: '没有可清除的活跃目标。',
+				clearSuccess: '目标 {id} 已清除。会话回到单轮聊天模式。',
+				created: '目标 {id} 已创建并开始追逐。',
+				tokenBudget: 'Token 预算: {budget}',
+				createHint: '按 ESC 暂停。使用 /goal resume 继续，/goal clear 中止。',
+				createFailed: '创建目标失败: {error}',
+				unknownError: '未知错误',
+				invalidUsage: '无效的 /goal 用法。直接运行 /goal 可查看用法提示。',
+				budgetUnlimited: '无限制',
+				budgetMillion: '{value}M tokens',
+				budgetThousand: '{value}K tokens',
+				budgetTokens: '{value} tokens',
+			},
 		},
 	},
 	fileList: {
@@ -698,6 +743,8 @@ export const zh: TranslationKeys = {
 		scanning: '正在扫描...（已索引 {count}）',
 		scanningDeeper: '正在搜索更深目录（深度 {depth}，已索引 {count}）...',
 		deeperSearchHint: '尚有更深目录未扫描 · 在末项按 ↓ 继续深入搜索',
+		multiSelectHint: '空格 勾选 · Enter 一次插入 · 支持多选',
+		multiSelectActiveHint: '已勾选 {count} 项 · 空格 切换 · Enter 一次插入',
 		contentSearchHeader: '≡ 内容搜索',
 		filesHeader: '≡ 文件 [{mode} • Ctrl+T]',
 		treeMode: '树形',

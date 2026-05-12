@@ -48,10 +48,14 @@ export type KeyboardInputOptions = {
 	filteredFileCount: number;
 	updateFilePickerState: (text: string, cursorPos: number) => void;
 	handleFileSelect: (filePath: string) => Promise<void>;
+	handleMultipleFileSelect?: (filePaths: string[]) => Promise<void>;
 	fileListRef: React.RefObject<{
 		getSelectedFile: () => string | null;
 		toggleDisplayMode: () => boolean;
 		triggerDeeperSearch: () => boolean;
+		toggleSelection: () => boolean;
+		getSelectedFiles: () => string[] | null;
+		clearSelections: () => void;
 	} | null>;
 
 	showHistoryMenu: boolean;

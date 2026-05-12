@@ -15,6 +15,7 @@ import './commands/deepresearch.js';
 import './commands/diff.js';
 import './commands/export.js';
 import './commands/gitline.js';
+import './commands/goal.js';
 import './commands/help.js';
 import './commands/home.js';
 import './commands/ide.js';

@@ -33,6 +33,8 @@ type PanelsManagerProps = {
 	terminalWidth: number;
 	workingDirectory: string;
 	showSessionPanel: boolean;
+	/** /goal resume 弹出的会话列表（goalOnly 模式） */
+	showGoalSessionPanel: boolean;
 	showMcpPanel: boolean;
 	showUsagePanel: boolean;
 	showHelpPanel: boolean;
@@ -50,6 +52,7 @@ type PanelsManagerProps = {
 	showTodoListPanel: boolean;
 	connectionPanelApiUrl?: string;
 	setShowSessionPanel: (show: boolean) => void;
+	setShowGoalSessionPanel: (show: boolean) => void;
 	setShowMcpPanel: (show: boolean) => void;
 	setShowCustomCommandConfig: (show: boolean) => void;
 	setShowSkillsCreation: (show: boolean) => void;
@@ -64,6 +67,11 @@ type PanelsManagerProps = {
 	setShowConnectionPanel: (show: boolean) => void;
 	setShowTodoListPanel: (show: boolean) => void;
 	handleSessionPanelSelect: (sessionId: string) => Promise<void>;
+	/**
+	 * /goal resume 面板的选中回调：与常规 handleSessionPanelSelect 区别在于
+	 * 选中后不仅恢复会话，还要立刻把对应 goal 状态切回 pursuing 并启动 Ralph Loop 第一轮。
+	 */
+	handleGoalSessionPanelSelect: (sessionId: string) => Promise<void>;
 
 	onCustomCommandSave: (
 		name: string,
@@ -94,6 +102,7 @@ export default function PanelsManager({
 	terminalWidth,
 	workingDirectory,
 	showSessionPanel,
+	showGoalSessionPanel,
 	showMcpPanel,
 	showUsagePanel,
 	showHelpPanel,
@@ -111,6 +120,7 @@ export default function PanelsManager({
 	showTodoListPanel,
 	connectionPanelApiUrl,
 	setShowSessionPanel,
+	setShowGoalSessionPanel,
 	setShowMcpPanel,
 	setShowCustomCommandConfig,
 	setShowSkillsCreation,
@@ -125,6 +135,7 @@ export default function PanelsManager({
 	setShowConnectionPanel,
 	setShowTodoListPanel,
 	handleSessionPanelSelect,
+	handleGoalSessionPanelSelect,
 	onCustomCommandSave,
 	onSkillsSave,
 	onRoleSave,
@@ -152,6 +163,19 @@ export default function PanelsManager({
 						<SessionListPanel
 							onSelectSession={handleSessionPanelSelect}
 							onClose={() => setShowSessionPanel(false)}
+						/>
+					</Suspense>
+				</Box>
+			)}
+
+			{/* /goal resume 弹出的列表：复用 SessionListPanel 的 goalOnly 模式 */}
+			{showGoalSessionPanel && (
+				<Box paddingX={1} width={terminalWidth}>
+					<Suspense fallback={loadingFallback}>
+						<SessionListPanel
+							goalOnly
+							onSelectSession={handleGoalSessionPanelSelect}
+							onClose={() => setShowGoalSessionPanel(false)}
 						/>
 					</Suspense>
 				</Box>

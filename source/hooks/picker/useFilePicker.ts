@@ -232,6 +232,53 @@ export function useFilePicker(buffer: TextBuffer, triggerUpdate: () => void) {
 		[state.atSymbolPosition, state.searchMode, buffer, triggerUpdate],
 	);
 
+	// Handle multi-file selection from the FileList checkbox picker.
+	// All selected paths are inserted in one shot, replacing the active
+	// @-query token. Each entry is prefixed with @ (or @@ for content search)
+	// and separated by a single space. The picker closes afterwards.
+	const handleMultipleFileSelect = useCallback(
+		async (filePaths: string[]) => {
+			if (filePaths.length === 0) {
+				return;
+			}
+			// Note: do NOT short-circuit to handleFileSelect for single-item
+			// arrays. A user who explicitly checked one entry — including a
+			// directory — expects it to be inserted as `@dir/` rather than
+			// drilling into the directory (which is what handleFileSelect
+			// does for trailing-slash paths).
+
+			if (state.atSymbolPosition === -1) {
+				return;
+			}
+
+			const displayText = buffer.text;
+			const cursorPos = buffer.getCursorPosition();
+			const beforeAt = displayText.slice(0, state.atSymbolPosition);
+			const afterCursor = displayText.slice(cursorPos);
+			const prefix = state.searchMode === 'content' ? '@@' : '@';
+
+			// Join every selected path with the same prefix so they all show up
+			// as proper @-references. A trailing space leaves the cursor in a
+			// natural spot to keep typing.
+			const insertedSegment =
+				filePaths.map(p => `${prefix}${p}`).join(' ') + ' ';
+			const newText = beforeAt + insertedSegment + afterCursor;
+
+			buffer.setText(newText);
+
+			const targetPos = state.atSymbolPosition + insertedSegment.length;
+			for (let i = 0; i < targetPos; i++) {
+				if (i < buffer.text.length) {
+					buffer.moveRight();
+				}
+			}
+
+			dispatch({type: 'SELECT_FILE'});
+			triggerUpdate();
+		},
+		[state.atSymbolPosition, state.searchMode, buffer, triggerUpdate],
+	);
+
 	// Handle filtered file count change
 	const handleFilteredCountChange = useCallback((count: number) => {
 		dispatch({type: 'SET_FILTERED_COUNT', count});
@@ -284,6 +331,7 @@ export function useFilePicker(buffer: TextBuffer, triggerUpdate: () => void) {
 		searchMode: state.searchMode,
 		updateFilePickerState,
 		handleFileSelect,
+		handleMultipleFileSelect,
 		handleFilteredCountChange,
 		fileListRef,
 	};

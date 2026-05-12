@@ -56,6 +56,7 @@ type Props = {
 	panelState: PanelState & PanelActions;
 	snapshotState: SnapshotState;
 	handleSessionPanelSelect: (sessionId: string) => Promise<void>;
+	handleGoalSessionPanelSelect: (sessionId: string) => Promise<void>;
 	showPermissionsPanel: boolean;
 	setShowPermissionsPanel: Dispatch<SetStateAction<boolean>>;
 	showSubAgentDepthPanel: boolean;
@@ -80,6 +81,7 @@ export default function ChatScreenPanels({
 	panelState,
 	snapshotState,
 	handleSessionPanelSelect,
+	handleGoalSessionPanelSelect,
 	showPermissionsPanel,
 	setShowPermissionsPanel,
 	showSubAgentDepthPanel,
@@ -100,6 +102,7 @@ export default function ChatScreenPanels({
 				terminalWidth={terminalWidth}
 				workingDirectory={workingDirectory}
 				showSessionPanel={panelState.showSessionPanel}
+				showGoalSessionPanel={panelState.showGoalSessionPanel}
 				showMcpPanel={panelState.showMcpPanel}
 				showUsagePanel={panelState.showUsagePanel}
 				showHelpPanel={panelState.showHelpPanel}
@@ -117,6 +120,7 @@ export default function ChatScreenPanels({
 				showTodoListPanel={panelState.showTodoListPanel}
 				connectionPanelApiUrl={panelState.connectionPanelApiUrl}
 				setShowSessionPanel={panelState.setShowSessionPanel}
+				setShowGoalSessionPanel={panelState.setShowGoalSessionPanel}
 				setShowMcpPanel={panelState.setShowMcpPanel}
 				setShowCustomCommandConfig={panelState.setShowCustomCommandConfig}
 				setShowSkillsCreation={panelState.setShowSkillsCreation}
@@ -131,6 +135,7 @@ export default function ChatScreenPanels({
 				setShowConnectionPanel={panelState.setShowConnectionPanel}
 				setShowTodoListPanel={panelState.setShowTodoListPanel}
 				handleSessionPanelSelect={handleSessionPanelSelect}
+				handleGoalSessionPanelSelect={handleGoalSessionPanelSelect}
 				onCustomCommandSave={async (
 					name,
 					command,

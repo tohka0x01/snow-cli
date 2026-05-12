@@ -295,7 +295,10 @@ export async function executeToolCall(
 								const fakeToolCall = {
 									id: 'team-tool',
 									type: 'function' as const,
-									function: {name: toolName, arguments: JSON.stringify(toolArgs)},
+									function: {
+										name: toolName,
+										arguments: JSON.stringify(toolArgs),
+									},
 								};
 								return await requestToolConfirmation(fakeToolCall);
 						  }
@@ -452,7 +455,8 @@ export async function executeToolCall(
 			// This ensures DiffViewer data survives token limit truncation
 			let editDiffData: Record<string, any> | undefined;
 			if (
-				typeof toolResult === 'object' && toolResult !== null &&
+				typeof toolResult === 'object' &&
+				toolResult !== null &&
 				(toolCall.function.name === 'filesystem-edit' ||
 					toolCall.function.name === 'filesystem-replaceedit')
 			) {
@@ -624,6 +628,12 @@ function getToolResourceType(toolName: string): string {
 		return 'notebook-state';
 	}
 
+	// User interaction prompts must be serialized.
+	// Rendering multiple question UIs concurrently can leave the flow waiting forever.
+	if (toolName === 'askuser-ask_question') {
+		return 'user-interaction';
+	}
+
 	// Terminal commands must be sequential to avoid race conditions
 	// (e.g., npm install -> npm build, port conflicts, file locks)
 	if (toolName === 'terminal-execute') {
@@ -680,6 +690,10 @@ function getResourceIdentifier(toolCall: ToolCall): string {
 
 	if (resourceType === 'notebook-state') {
 		return 'notebook-state'; // All Notebook operations share same resource
+	}
+
+	if (resourceType === 'user-interaction') {
+		return 'user-interaction'; // All user question prompts share one UI interaction lane
 	}
 
 	if (resourceType === 'terminal-execution') {

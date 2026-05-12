@@ -38,6 +38,11 @@ export interface Session {
 	branchedFrom?: string; // 如果是 fork 产生的会话，记录来源会话ID
 	branchName?: string; // 用户指定的分支名称
 	contextUsage?: UsageInfo; // 最近一次 API 响应的上下文 token 使用信息（可选，向下兼容）
+	// /goal 相关：标记本会话当前是否绑定了一个未完结的 Ralph Loop 目标。
+	// - true：goal- MCP 工具应该注册供模型调用
+	// - false / undefined：普通会话，goal- 工具不会注册
+	// 由 goalManager 在 createGoal / resumeGoal / clearGoal / modelUpdateGoal 中同步维护
+	hasGoal?: boolean;
 }
 
 export interface SessionListItem {
@@ -51,6 +56,12 @@ export interface SessionListItem {
 	projectId?: string; // 项目ID
 	compressedFrom?: string; // 如果是压缩产生的会话，记录来源会话ID
 	compressedAt?: number; // 压缩时间戳
+	// /goal 相关元数据（仅 listGoalResumableSessions 填充，普通列表不返回）
+	hasGoal?: boolean;
+	goalStatus?: 'pursuing' | 'paused' | 'budget-limited' | 'achieved' | 'unmet';
+	goalObjective?: string;
+	goalTokensUsed?: number;
+	goalTokenBudget?: number;
 }
 
 export interface PaginatedSessionList {
@@ -600,6 +611,7 @@ class SessionManager {
 				projectId: session.projectId,
 				compressedFrom: session.compressedFrom,
 				compressedAt: session.compressedAt,
+				hasGoal: session.hasGoal, // 透传给 /goal resume 列表过滤
 			});
 			seenIds.add(session.id);
 		} catch (error) {
@@ -685,6 +697,7 @@ class SessionManager {
 							projectId: session.projectId,
 							compressedFrom: session.compressedFrom,
 							compressedAt: session.compressedAt,
+							hasGoal: session.hasGoal, // 透传给 /goal resume 列表过滤
 						});
 					} catch (error) {
 						// Skip invalid session files
@@ -882,6 +895,95 @@ class SessionManager {
 	clearCurrentSession(): void {
 		this.currentSession = null;
 		this.notifyMessagesChanged();
+	}
+
+	/**
+	 * /goal 专用：把指定会话的 hasGoal 标记落盘。
+	 *
+	 * 使用方式：
+	 * - goalManager.createGoal / resumeGoal 设置 true（让 mcpToolsManager 注册 goal- 工具）
+	 * - goalManager.clearGoal / modelUpdateGoal(achieved|unmet) 设置 false（撤销 goal- 工具）
+	 *
+	 * 为什么必须落盘（而不是只改内存）：用户通过 /resume <id> 切换到一个旧的 goal 会话时，
+	 * sessionManager 会 loadSessionFromDisk 重新读取，如果 hasGoal 没写入磁盘，
+	 * 切换回来后 mcpToolsManager 拿不到 hasGoal=true，模型就无法调用 goal-update_goal
+	 * 来停止 Ralph Loop —— 整个机制会失效。
+	 *
+	 * 如果会话已经在内存中（getCurrentSession），同步更新内存对象，
+	 * 避免后续 saveMessage 用旧引用把 hasGoal 又抹掉。
+	 */
+	async setSessionGoalFlag(sessionId: string, hasGoal: boolean): Promise<void> {
+		// 先更新内存中的当前会话（如果命中），避免读盘
+		const isCurrent = this.currentSession?.id === sessionId;
+		if (isCurrent) {
+			this.currentSession!.hasGoal = hasGoal;
+		}
+
+		// 落盘：通过 findSessionInDateFolders 找到文件，改字段，再 saveSession。
+		// saveSession 内部会按 createdAt 计算文件夹路径，保证写到正确位置。
+		try {
+			let session: Session | null = isCurrent
+				? this.currentSession
+				: await this.loadSessionFromDisk(sessionId);
+			if (!session) {
+				// 会话不存在（可能刚被删除），静默忽略。goal 文件本身仍可独立存在，
+				// 但失去 session 后 goal- 工具反正也用不上。
+				return;
+			}
+			session.hasGoal = hasGoal;
+			await this.saveSession(session);
+		} catch (error) {
+			logger.warn('Failed to persist hasGoal flag:', {
+				sessionId,
+				hasGoal,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
+
+	/**
+	 * /goal resume 专用：列出本项目下所有 goal 可恢复的会话。
+	 *
+	 * 筛选规则（与 /goal resume 的语义保持一致）：
+	 * - 必须 session.hasGoal === true
+	 * - 必须 goal 状态在 ['paused', 'pursuing', 'budget-limited'] 中（已完成 achieved / 已放弃 unmet 不可恢复）
+	 *
+	 * 为什么不直接复用 listSessions：普通列表不需要 goal 元数据，避免把 goalManager
+	 * 引入热路径增加 IO。/goal resume 这种低频路径才扫描每个 goal 文件。
+	 *
+	 * 返回的 SessionListItem 会额外携带 goalStatus / goalObjective / tokens 字段
+	 * 供 SessionListPanel 在 goalOnly 模式下展示。
+	 */
+	async listGoalResumableSessions(): Promise<SessionListItem[]> {
+		const all = await this.listSessions();
+		const result: SessionListItem[] = [];
+		// 延迟 import 避免循环依赖（goalManager 内部已经反过来 import sessionManager）
+		const {goalManager} = await import('../task/goalManager.js');
+		for (const item of all) {
+			if (!item.hasGoal) continue;
+			try {
+				const goal = await goalManager.loadGoalForSession(item.id);
+				if (!goal) continue;
+				if (
+					goal.status !== 'paused' &&
+					goal.status !== 'pursuing' &&
+					goal.status !== 'budget-limited'
+				) {
+					continue;
+				}
+				result.push({
+					...item,
+					hasGoal: true,
+					goalStatus: goal.status,
+					goalObjective: goal.objective,
+					goalTokensUsed: goal.tokensUsed,
+					goalTokenBudget: goal.tokenBudget,
+				});
+			} catch {
+				// 单个 goal 读失败不影响整体列表
+			}
+		}
+		return result;
 	}
 
 	/**
@@ -1133,10 +1235,17 @@ class SessionManager {
 
 			if (interpreted.action === 'warn') {
 				logger.warn(interpreted.warningMessage || '');
-				return {shouldContinue: true, warningMessage: interpreted.warningMessage};
+				return {
+					shouldContinue: true,
+					warningMessage: interpreted.warningMessage,
+				};
 			}
 			if (interpreted.action === 'block') {
-				logger.error(`onSessionStart hook failed: ${JSON.stringify(interpreted.errorDetails)}`);
+				logger.error(
+					`onSessionStart hook failed: ${JSON.stringify(
+						interpreted.errorDetails,
+					)}`,
+				);
 				return {shouldContinue: false, errorDetails: interpreted.errorDetails};
 			}
 			return {shouldContinue: true};

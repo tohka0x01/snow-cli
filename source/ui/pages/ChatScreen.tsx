@@ -254,6 +254,39 @@ export default function ChatScreen({
 
 	const handleProfileSelect = panelState.handleProfileSelect;
 
+	/**
+	 * /goal resume 面板的选中回调。
+	 *
+	 * 流程（顺序很重要）：
+	 * 1) 关闭 goal session panel
+	 * 2) 复用 handleSessionPanelSelect 恢复会话 UI / 加载消息 / 清屏 / setCurrentSession
+	 * 3) goalManager.resumeGoalForSession 把 goal 状态置回 pursuing + pendingContinuation=true
+	 *    并通过 setSessionGoalFlag(true) 重新点亮 hasGoal 标记（防御性）
+	 * 4) 触发 processMessage('', undefined, false, true) 启动 Ralph Loop 第一轮
+	 *    （hideUserMessage=true 让续接 prompt 作为唯一输入，不在历史里追加可见 user 消息）
+	 *
+	 * 这与 /goal resume（当前会话有 paused goal 时）的差异：
+	 * - /goal resume 在当前会话内复用 goalManager.resumeGoal()，不需要切换 session
+	 * - 本回调先切换到目标会话再恢复，所以必须用 resumeGoalForSession（不依赖 currentSession）
+	 */
+	const handleGoalSessionPanelSelect = async (sessionId: string) => {
+		panelState.setShowGoalSessionPanel(false);
+		await handleSessionPanelSelect(sessionId);
+		try {
+			const {goalManager} = await import('../../utils/task/goalManager.js');
+			const goal = await goalManager.resumeGoalForSession(sessionId);
+			if (!goal) {
+				// goal 文件已被清掉（极端情况），降级为普通 resume，不启动循环
+				return;
+			}
+			// 启动 Ralph Loop 第一轮——与 /goal resume / /goal <objective> 创建即启动保持一致
+			// 等价于 useCommandHandler 处理 startGoalLoop action 的核心两步
+			await processMessage('', undefined, false, true);
+		} catch (err) {
+			console.error('[goal] resume from panel failed:', err);
+		}
+	};
+
 	const {handleCommandExecution} = useCommandHandler({
 		messages,
 		setMessages,
@@ -265,6 +298,8 @@ export default function ChatScreen({
 		setCompressionError,
 		setShowSessionPanel: panelState.setShowSessionPanel,
 		onResumeSessionById: handleSessionPanelSelect,
+		setShowGoalSessionPanel: panelState.setShowGoalSessionPanel,
+		onResumeGoalSession: handleGoalSessionPanelSelect,
 		setShowMcpPanel: panelState.setShowMcpPanel,
 		setShowHelpPanel: panelState.setShowHelpPanel,
 		setShowUsagePanel: panelState.setShowUsagePanel,
@@ -375,6 +410,7 @@ export default function ChatScreen({
 
 	const hasBlockingPanel =
 		panelState.showSessionPanel ||
+		panelState.showGoalSessionPanel ||
 		panelState.showMcpPanel ||
 		panelState.showUsagePanel ||
 		panelState.showHelpPanel ||
@@ -509,6 +545,7 @@ export default function ChatScreen({
 				panelState={panelState}
 				snapshotState={snapshotState}
 				handleSessionPanelSelect={handleSessionPanelSelect}
+				handleGoalSessionPanelSelect={handleGoalSessionPanelSelect}
 				showPermissionsPanel={showPermissionsPanel}
 				setShowPermissionsPanel={setShowPermissionsPanel}
 				showSubAgentDepthPanel={showSubAgentDepthPanel}

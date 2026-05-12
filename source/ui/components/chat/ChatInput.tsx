@@ -372,6 +372,7 @@ export default function ChatInput({
 		searchMode,
 		updateFilePickerState,
 		handleFileSelect,
+		handleMultipleFileSelect,
 		handleFilteredCountChange,
 		fileListRef,
 	} = useFilePicker(buffer, triggerUpdate);
@@ -518,6 +519,7 @@ export default function ChatInput({
 		filteredFileCount,
 		updateFilePickerState,
 		handleFileSelect,
+		handleMultipleFileSelect,
 		fileListRef,
 		showHistoryMenu,
 		setShowHistoryMenu,
