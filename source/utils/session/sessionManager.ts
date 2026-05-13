@@ -887,6 +887,20 @@ class SessionManager {
 		return this.currentSession;
 	}
 
+	/**
+	 * Load a session purely from disk for read-only purposes (e.g. /export).
+	 *
+	 * Unlike `loadSession`, this does not mutate `currentSession`, does not run
+	 * the onSessionStart hook, and does not touch the session list cache. Returns
+	 * null if the session file cannot be found.
+	 */
+	async getSessionForExport(sessionId: string): Promise<Session | null> {
+		const session = await this.loadSessionFromDisk(sessionId);
+		if (!session) return null;
+		this.cleanIncompleteToolCalls(session);
+		return session;
+	}
+
 	setCurrentSession(session: Session): void {
 		this.currentSession = session;
 		this.notifyMessagesChanged();

@@ -437,6 +437,44 @@ class GoalManager {
 		}
 		return lines.join('\n');
 	}
+
+	/**
+	 * 上下文压缩专用：把旧 sessionId 的 goal 记录迁移到新 sessionId。
+	 *
+	 * 背景：executeContextCompression 会创建一个全新的 sessionId（用于保留压缩前
+	 * 的完整快照），但 goal 文件是按 sessionId 落盘的：~/.snow/goals/<projectId>/<sessionId>.json。
+	 * 如果不迁移，压缩后切到新会话时 loadCurrentGoal 读不到任何文件，Ralph Loop
+	 * 当场死掉、续接 prompt 也不会再注入，用户的目标原文（goal.objective）也跟着丢。
+	 *
+	 * 行为：
+	 * - 读旧 path 的 GoalRecord -> 修改 sessionId 字段 -> 写到新 path -> 同步缓存。
+	 * - 旧 goal 文件保留不删，方便回滚到压缩前快照时仍能用。
+	 * - 旧缓存项主动清掉，避免后续 loadCurrentGoal/loadGoalForSession 命中错误 sessionId。
+	 * - 写完后通知监听者（状态栏/命令面板会立刻看到新会话已绑定 goal）。
+	 *
+	 * @returns 迁移后的 GoalRecord；如果旧 sessionId 没有 goal 则返回 null。
+	 */
+	async migrateGoalToSession(
+		oldSessionId: string,
+		newSessionId: string,
+	): Promise<GoalRecord | null> {
+		if (!oldSessionId || !newSessionId || oldSessionId === newSessionId) {
+			return null;
+		}
+		const original = await this.loadGoalForSession(oldSessionId);
+		if (!original) return null;
+
+		const migrated: GoalRecord = {
+			...original,
+			sessionId: newSessionId,
+			updatedAt: Date.now(),
+		};
+		// 直接走 persist：会 ensureDir、写新文件、更新缓存并 notify。
+		await this.persist(migrated);
+		// 把旧 sessionId 的缓存清掉，避免下次 loadCurrentGoal 命中旧条目。
+		this.cache.delete(oldSessionId);
+		return migrated;
+	}
 }
 
 /**

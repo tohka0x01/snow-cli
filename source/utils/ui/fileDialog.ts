@@ -18,6 +18,10 @@ async function showWindowsSaveDialog(
 ): Promise<string | null> {
 	const downloadsPath = path.join(os.homedir(), 'Downloads');
 	const psScript = [
+		// Force UTF-8 output so non-ASCII paths (e.g. Chinese directory names) are
+		// not corrupted by the default OEM/ANSI code page when Node decodes stdout.
+		'[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;',
+		'$OutputEncoding = [System.Text.Encoding]::UTF8;',
 		'Add-Type -AssemblyName System.Windows.Forms;',
 		'$dialog = New-Object System.Windows.Forms.SaveFileDialog;',
 		`$dialog.Title = '${escapePowerShellString(title)}';`,

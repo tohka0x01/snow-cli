@@ -640,6 +640,8 @@ export type TranslationKeys = {
 				exporting: string;
 				openingDialog: string;
 				cancelledByUser: string;
+				invalidFormat: string;
+				noSession: string;
 			};
 			// IDE command messages
 			ide: {

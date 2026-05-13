@@ -694,6 +694,10 @@ export const en: TranslationKeys = {
 				exporting: 'Exporting conversation...',
 				openingDialog: 'Opening file save dialog...',
 				cancelledByUser: 'Export cancelled by user.',
+				invalidFormat:
+					'Invalid export format: {format}. Supported: txt, md, html.',
+				noSession:
+					'No active session to export. Start a conversation first, then try /export again.',
 			},
 			// IDE command messages
 			ide: {

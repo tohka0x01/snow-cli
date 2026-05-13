@@ -650,6 +650,8 @@ export const zh: TranslationKeys = {
 				exporting: '正在导出对话...',
 				openingDialog: '正在打开文件保存对话框...',
 				cancelledByUser: '导出已被用户取消。',
+				invalidFormat: '不支持的导出格式：{format}。可选：txt、md、html。',
+				noSession: '当前没有可导出的会话，请先进行一轮对话后再试 /export。',
 			},
 			// IDE 命令消息
 			ide: {

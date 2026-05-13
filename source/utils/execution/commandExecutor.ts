@@ -71,6 +71,7 @@ export interface CommandResult {
 	alreadyConnected?: boolean; // For /ide command to indicate if VSCode is already connected
 	forceReindex?: boolean; // For /reindex -force to delete existing database and rebuild
 	apiUrl?: string; // For /connect command to pass API URL
+	exportFormat?: 'txt' | 'md' | 'html' | 'json'; // For /export command to choose output format
 }
 
 export interface CommandHandler {

@@ -651,6 +651,8 @@ export const zhTW: TranslationKeys = {
 				exporting: '正在導出對話...',
 				openingDialog: '正在開啟檔案儲存對話方塊...',
 				cancelledByUser: '導出已被使用者取消。',
+				invalidFormat: '不支援的匯出格式：{format}。可選：txt、md、html。',
+				noSession: '目前沒有可匯出的會話，請先進行一輪對話後再試 /export。',
 			},
 			// IDE 命令訊息
 			ide: {

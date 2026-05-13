@@ -8,6 +8,8 @@ import {performHybridCompression} from '../../utils/core/subAgentContextCompress
 import {getSnowConfig} from '../../utils/config/apiConfig.js';
 import {getHybridCompressEnabled} from '../../utils/config/projectSettings.js';
 import {getTodoService} from '../../utils/execution/mcpToolsManager.js';
+import {goalManager} from '../../utils/task/goalManager.js';
+import type {GoalRecord} from '../../utils/task/goalManager.js';
 import {navigateTo} from '../integration/useGlobalNavigation.js';
 import type {UsageInfo} from '../../api/chat.js';
 import {resetTerminal} from '../../utils/execution/terminal.js';
@@ -15,7 +17,7 @@ import {
 	showSaveDialog,
 	isFileDialogSupported,
 } from '../../utils/ui/fileDialog.js';
-import {exportMessagesToFile} from '../../utils/session/chatExporter.js';
+import {exportSessionToFile} from '../../utils/session/chatExporter.js';
 import {copyToClipboard} from '../../utils/core/clipboard.js';
 import {useI18n} from '../../i18n/index.js';
 import {getCurrentLanguage} from '../../utils/config/languageConfig.js';
@@ -27,6 +29,25 @@ import {translations} from '../../i18n/index.js';
 function getExportMessages() {
 	const currentLanguage = getCurrentLanguage();
 	return translations[currentLanguage].commandPanel.commandOutput.export;
+}
+
+/**
+ * 构造 /goal 需求原文注入区块。
+ *
+ * 使用场景：executeContextCompression 创建压缩会话时，会把该区块拼到第一条 user
+ * 消息的最前面（或 hybrid 分支的首条 user 消息内部），避免 AI 生成的 handover
+ * 摘要改写 / 漯移用户原话。只拼原文，不加任何 paraphrase。
+ */
+function buildGoalObjectiveBlock(goal: GoalRecord): string {
+	return [
+		'[GOAL OBJECTIVE - VERBATIM, MUST NOT BE PARAPHRASED]',
+		`Active goal (id=${goal.id}, status=${goal.status}):`,
+		`"${goal.objective}"`,
+		'',
+		"The exact wording above is the user's original requirement. Treat it as the",
+		'authoritative source of truth. Do NOT rephrase it. If subsequent summary content',
+		'appears to contradict this objective, the verbatim text wins.',
+	].join('\n');
 }
 
 /**
@@ -132,6 +153,31 @@ export async function executeContextCompression(
 				false,
 				true,
 			);
+			// ── /goal: 在压缩消息序列最前面注入用户目标原文 ──
+			// hybrid 分支返回的 newSessionMessages 第一条通常是 AI 生成的「Auto-Compressed Summary」
+			// user 消息（aiSummaryCompress 构造）。AI 摘要会改写、压缩用户原话，goal 模式必须
+			// 保证用户的需求原文 (goal.objective) 在新会话上下文里逐字可见，否则后续 Ralph Loop
+			// continuation prompt 中 `"${goal.objective}"` 与摘要里的目标信息可能漂移 / 丢失。
+			// 因此：找到第一条 user 消息，把目标原文以独立区块前置；若没有 user 则 prepend 一条。
+			const hybridGoalForInjection = await goalManager.loadGoalForSession(
+				currentSession.id,
+			);
+			if (hybridGoalForInjection) {
+				const goalBlock = buildGoalObjectiveBlock(hybridGoalForInjection);
+				const firstUserIdx = newSessionMessages.findIndex(
+					(m: any) => m && m.role === 'user',
+				);
+				if (firstUserIdx >= 0) {
+					const first = newSessionMessages[firstUserIdx];
+					first.content = `${goalBlock}\n\n${first.content || ''}`;
+				} else {
+					newSessionMessages.unshift({
+						role: 'user',
+						content: goalBlock,
+						timestamp: Date.now(),
+					});
+				}
+			}
 			compressedSession.messages = newSessionMessages;
 			compressedSession.messageCount = newSessionMessages.length;
 			compressedSession.updatedAt = Date.now();
@@ -139,8 +185,37 @@ export async function executeContextCompression(
 			compressedSession.summary = currentSession.summary;
 			compressedSession.compressedFrom = currentSession.id;
 			compressedSession.compressedAt = Date.now();
+			// ── /goal: 把 hasGoal 标记带过来，新会话 saveSession 后即可让
+			// mcpToolsManager 在切换后重新暴露 goal-update_goal 工具。
+			if (currentSession.hasGoal) {
+				compressedSession.hasGoal = true;
+			}
 
 			await sessionManager.saveSession(compressedSession);
+
+			// ── /goal: 迁移 goal 文件到新 sessionId ──
+			// 必须放在 saveSession 之后、reload 之前。这样 goalManager.loadCurrentGoal
+			// 在 setCurrentSession(reloadedSession) 之后能立刻命中新 path 的 goal 文件，
+			// Ralph Loop 续接、accrueTokens、modelUpdateGoal 全部链路恢复正常。
+			if (currentSession.hasGoal) {
+				try {
+					await goalManager.migrateGoalToSession(
+						currentSession.id,
+						compressedSession.id,
+					);
+					// 让 mcpToolsManager 下一次刷新工具列表时基于新 session.hasGoal 重新注册
+					// goal-update_goal（configHash 已把 sessionHasGoal 纳入）。
+					const {clearMCPToolsCache} = await import(
+						'../../utils/execution/mcpToolsManager.js'
+					);
+					clearMCPToolsCache();
+				} catch (err) {
+					console.error(
+						'[goal] Failed to migrate goal after hybrid compression:',
+						err,
+					);
+				}
+			}
 
 			// Inherit TODO list
 			try {
@@ -214,7 +289,21 @@ export async function executeContextCompression(
 		// 构建新的会话消息列表
 		const newSessionMessages: Array<any> = [];
 
-		let finalContent = `[Context Summary from Previous Conversation]\n\n${compressionResult.summary}`;
+		// ── /goal: 把用户目标原文逐字嵌入压缩摘要顶部 ──
+		// compressContext 会调 AI 生成 handover 文档，虽然要求保留 user requirements 但
+		// 仍是经过 AI 改写的摘要，不保证逐字。goal 模式必须保证需求原文 (goal.objective)
+		// 在新会话上下文里逐字可见：
+		// - 驱动 Ralph Loop 续接的 continuation prompt 里 `"${goal.objective}"` 是原文，
+		//   如果摘要里只有 paraphrase，模型会看到两段意思不同的“目标”，决策面会漂移。
+		// - 以后万一 migrateGoalToSession 失败也能双保险：模型至少能从上下文中读到目标原话。
+		const standardGoalForInjection = await goalManager.loadGoalForSession(
+			currentSession.id,
+		);
+		const goalHeader = standardGoalForInjection
+			? buildGoalObjectiveBlock(standardGoalForInjection) + '\n\n'
+			: '';
+
+		let finalContent = `${goalHeader}[Context Summary from Previous Conversation]\n\n${compressionResult.summary}`;
 
 		if (
 			compressionResult.preservedMessages &&
@@ -278,8 +367,37 @@ export async function executeContextCompression(
 		compressedSession.originalMessageIndex =
 			compressionResult.preservedMessageStartIndex;
 
+		// ── /goal: 把 hasGoal 标记带过来 ──
+		// 必须在 saveSession 之前设置，否则落盘后新会话丢失 hasGoal，
+		// mcpToolsManager 下次重建工具列表时拿不到 hasGoal=true，goal-update_goal
+		// 会从工具集里消失，模型无法标记目标完成、Ralph Loop 反而停不下来。
+		if (currentSession.hasGoal) {
+			compressedSession.hasGoal = true;
+		}
+
 		// 保存新会话
 		await sessionManager.saveSession(compressedSession);
+
+		// ── /goal: 迁移 goal 文件到新 sessionId ──
+		// 详见 hybrid 分支同名逻辑的注释。这里 standardGoalForInjection 已在上面读过，
+		// 复用它验证 hasGoal 表明确实存在 goal 文件 -> 避免在错误状态下重复调用。
+		if (currentSession.hasGoal && standardGoalForInjection) {
+			try {
+				await goalManager.migrateGoalToSession(
+					currentSession.id,
+					compressedSession.id,
+				);
+				const {clearMCPToolsCache} = await import(
+					'../../utils/execution/mcpToolsManager.js'
+				);
+				clearMCPToolsCache();
+			} catch (err) {
+				console.error(
+					'[goal] Failed to migrate goal after standard compression:',
+					err,
+				);
+			}
+		}
 
 		// 继承原会话的 TODO 列表到新会话
 		try {
@@ -1247,11 +1365,31 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 				// Use advanced model (basicModel=false) and hide the prompt from UI
 				options.processMessage(result.prompt, undefined, false, true);
 			} else if (result.success && result.action === 'exportChat') {
-				// Handle export chat command
+				// Handle export chat command - source of truth is the persisted session
+				// entity (~/.snow/sessions/...). Refuse to export if there is no session
+				// to read from (e.g. temporary chat or session not yet created).
+				const exportFormat = result.exportFormat ?? 'txt';
+				const exportMessages = getExportMessages();
+
+				const sessionForExport = sessionManager.getCurrentSession();
+				if (
+					!sessionForExport ||
+					!sessionForExport.id ||
+					sessionForExport.isTemporary
+				) {
+					const errorMessage: Message = {
+						role: 'command',
+						content: exportMessages.noSession,
+						commandName: commandName,
+					};
+					options.setMessages(prev => [...prev, errorMessage]);
+					return;
+				}
+
 				// Show loading message first
 				const loadingMessage: Message = {
 					role: 'command',
-					content: getExportMessages().openingDialog,
+					content: exportMessages.openingDialog,
 					commandName: commandName,
 				};
 				options.setMessages(prev => [...prev, loadingMessage]);
@@ -1269,12 +1407,32 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 						return;
 					}
 
-					// Generate default filename with timestamp
+					// Flush any pending in-memory state to disk so the export reflects
+					// the latest assistant turn (mirrors the /copy-last pattern).
+					await sessionManager.saveSession(sessionForExport);
+
+					// Re-load the session entity from disk so we export the canonical,
+					// persisted ChatMessage[] rather than UI Message[].
+					const diskSession = await sessionManager.getSessionForExport(
+						sessionForExport.id,
+					);
+					if (!diskSession) {
+						const errorMessage: Message = {
+							role: 'command',
+							content: exportMessages.noSession,
+							commandName: commandName,
+						};
+						options.setMessages(prev => [...prev, errorMessage]);
+						return;
+					}
+
+					// Generate default filename with timestamp + short session id
 					const timestamp = new Date()
 						.toISOString()
 						.replace(/[:.]/g, '-')
 						.split('.')[0];
-					const defaultFilename = `snow-chat-${timestamp}.txt`;
+					const shortId = diskSession.id.slice(0, 8);
+					const defaultFilename = `snow-chat-${timestamp}-${shortId}.${exportFormat}`;
 
 					// Show native save dialog
 					const filePath = await showSaveDialog(
@@ -1286,15 +1444,15 @@ export function useCommandHandler(options: CommandHandlerOptions) {
 						// User cancelled
 						const cancelMessage: Message = {
 							role: 'command',
-							content: getExportMessages().cancelledByUser,
+							content: exportMessages.cancelledByUser,
 							commandName: commandName,
 						};
 						options.setMessages(prev => [...prev, cancelMessage]);
 						return;
 					}
 
-					// Export messages to file
-					await exportMessagesToFile(options.messages, filePath);
+					// Export the on-disk session entity to file
+					await exportSessionToFile(diskSession, filePath, exportFormat);
 
 					// Show success message
 					const successMessage: Message = {

@@ -45,6 +45,7 @@ export const COMMAND_ARGS_HINTS: Record<string, string> = {
 	btw: '<question>',
 	deepresearch: '<prompt>',
 	connect: '[apiUrl]',
+	export: '[txt|md|html|json]',
 };
 
 // 指令参数可选值列表：用于 Tab 弹出参数选择面板
@@ -59,6 +60,7 @@ export const COMMAND_ARGS_OPTIONS: Record<string, string[]> = {
 	'role-subagent': ['-l', '-d'],
 	'subagent-depth': ['status'],
 	loop: ['list', 'tasks', 'cancel'],
+	export: ['txt', 'md', 'html', 'json'],
 };
 
 export function useCommandPanel(buffer: TextBuffer, isProcessing = false) {
