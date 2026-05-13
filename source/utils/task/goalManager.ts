@@ -480,10 +480,11 @@ class GoalManager {
 /**
  * 续接提示词
  * 强调：
- * 1) 重述目标为具体可验证交付物；
- * 2) 构建审计清单；
- * 3) 必须检视真实文件/输出，不接受代理信号；
- * 4) 达成时必须调用 goal-update_goal 工具显式标记 achieved。
+ * 1) 完整维护 todolist（goal 模式的基本要求 —— 拆解、跟踪、收敛）；
+ * 2) 重述目标为具体可验证交付物；
+ * 3) 构建审计清单；
+ * 4) 必须检视真实文件/输出，不接受代理信号；
+ * 5) 达成时必须调用 goal-update_goal 工具显式标记 achieved。
  */
 function buildContinuationPrompt(goal: GoalRecord): string {
 	const remaining =
@@ -493,25 +494,34 @@ function buildContinuationPrompt(goal: GoalRecord): string {
 		`Active goal (id=${goal.id}, run #${goal.runCount + 1}):`,
 		`"${goal.objective}"`,
 		'',
+		'MANDATORY — TODOLIST DISCIPLINE (basic requirement of goal mode):',
+		'- Maintain a COMPLETE, up-to-date todolist for this goal using the `todo-manage` tool.',
+		'- FIRST action every turn: call `todo-manage` with action="get" to inspect the current list. If empty or stale, immediately decompose the objective into concrete actionable items via action="add" (batch the full plan in one call).',
+		'- Update item status IMMEDIATELY after each step is verified: action="update" with status="inProgress" when you start and status="completed" when you finish — do NOT batch-update at the end of the turn.',
+		'- Delete obsolete or superseded items via action="delete" so the list stays focused; refine wording via action="update" content when scope clarifies.',
+		'- The todolist must remain a faithful mirror of progress toward the objective: every remaining deliverable has an item, every completed deliverable is marked completed.',
+		'',
 		'Instructions for this turn:',
-		'1. Restate the objective as concrete, testable deliverables.',
-		'2. Build an audit checklist mapping each requirement to verification evidence.',
-		'3. Inspect actual files, outputs, and test results — DO NOT infer from proxy signals (e.g. "tests pass" alone is not proof).',
-		'4. If the audit confirms the objective is fully achieved, you MUST call the tool `goal-update_goal` with status="achieved" and a short explanation.',
-		'5. If the goal cannot be achieved (blocked, requires user input, contradictory requirements), call `goal-update_goal` with status="unmet" and explain why.',
-		'6. Otherwise, continue executing the next concrete step toward the objective and the loop will re-prompt you next turn.',
+		'1. Sync the todolist first (see TODOLIST DISCIPLINE above) before doing any other work.',
+		'2. Restate the objective as concrete, testable deliverables (and reflect them as todolist items).',
+		'3. Build an audit checklist mapping each requirement to verification evidence.',
+		'4. Inspect actual files, outputs, and test results — DO NOT infer from proxy signals (e.g. "tests pass" alone is not proof).',
+		'5. If the audit confirms the objective is fully achieved, ensure every todolist item is marked completed, then you MUST call the tool `goal-update_goal` with status="achieved" and a short explanation.',
+		'6. If the goal cannot be achieved (blocked, requires user input, contradictory requirements), record the blocker as a todolist item and call `goal-update_goal` with status="unmet" and explain why.',
+		'7. Otherwise, execute the next concrete step toward the objective (updating todolist status as you go) and the loop will re-prompt you next turn.',
 		'',
 		`Token budget: ~${remaining} tokens remaining (used ${goal.tokensUsed} / ${
 			goal.tokenBudget ?? DEFAULT_TOKEN_BUDGET
 		}). Prefer small, verifiable steps.`,
 		'',
-		'CRITICAL: Do not declare completion by chat text alone. The loop only stops when you call `goal-update_goal`.',
+		'CRITICAL: Do not declare completion by chat text alone. The loop only stops when you call `goal-update_goal`. A stale or missing todolist is itself a violation of goal-mode requirements.',
 	].join('\n');
 }
 
 /**
  * 预算耗尽提示词
  * 要求模型优雅收尾：不开启新任务、总结进展、给出下一步、不虚假声明完成。
+ * 同样要求把 todolist 同步到最终状态，方便用户/下个会话接管。
  */
 function buildBudgetLimitPrompt(goal: GoalRecord): string {
 	return [
@@ -521,10 +531,11 @@ function buildBudgetLimitPrompt(goal: GoalRecord): string {
 		'',
 		'This is your FINAL turn for this goal. You MUST:',
 		'1. NOT start any new substantive work.',
-		'2. Summarize useful progress made so far.',
-		'3. Identify remaining work and any blockers.',
-		'4. Provide a clear next step (file, function, command) that a human or new session can pick up.',
-		'5. DO NOT falsely call `goal-update_goal` with status="achieved" just because the budget is exhausted. Only mark "achieved" if the audit truly confirms completion.',
+		'2. Sync the todolist via `todo-manage` to its final state: mark completed items as "completed", leave remaining items as "pending" with clear wording so a human or new session can pick them up. Do NOT delete unfinished items.',
+		'3. Summarize useful progress made so far.',
+		'4. Identify remaining work and any blockers (these should also appear as pending todolist items).',
+		'5. Provide a clear next step (file, function, command) that a human or new session can pick up.',
+		'6. DO NOT falsely call `goal-update_goal` with status="achieved" just because the budget is exhausted. Only mark "achieved" if the audit truly confirms completion.',
 		'',
 		'After this turn, the goal will automatically remain in "budget-limited" state. The user can clear it or raise the budget and resume.',
 	].join('\n');

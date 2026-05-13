@@ -1,90 +1,58 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
+import {readSettings, updateSettings} from './unifiedSettings.js';
 import type {MCPConfigScope} from './apiConfig.js';
 
 /**
  * 管理单个 MCP 工具的禁用状态
- * 支持全局 (~/.snow/disabled-mcp-tools.json) 和项目 (<cwd>/.snow/disabled-mcp-tools.json) 两个作用域
+ *
+ * Storage:
+ *   - 全局: `~/.snow/settings.json` 的 `disabledMCPTools` / `optInMCPTools` 字段
+ *   - 项目: `<cwd>/.snow/settings.json` 同名字段
+ *
+ * （历史上分别存于 `disabled-mcp-tools.json` / `opt-in-mcp-tools.json`，
+ *   已自动迁移到 settings.json。）
+ *
  * 工具标识格式: "serviceName:toolName"
  */
-
-const CONFIG_FILE = 'disabled-mcp-tools.json';
-const OPT_IN_CONFIG_FILE = 'opt-in-mcp-tools.json';
-
-interface DisabledMCPToolsConfig {
-	disabledTools: string[];
-}
-
-interface OptInMCPConfig {
-	enabledTools: string[];
-}
 
 /** Tools that are off until explicitly enabled (Tab in MCP tools list writes opt-in file). */
 const DEFAULT_OPT_IN_DISABLED_KEYS = new Set<string>(['filesystem:edit']);
 
-function getProjectConfigPath(): string {
-	return path.join(process.cwd(), '.snow', CONFIG_FILE);
-}
-
-function getGlobalConfigPath(): string {
-	return path.join(os.homedir(), '.snow', CONFIG_FILE);
-}
-
-function getProjectOptInPath(): string {
-	return path.join(process.cwd(), '.snow', OPT_IN_CONFIG_FILE);
-}
-
-function getGlobalOptInPath(): string {
-	return path.join(os.homedir(), '.snow', OPT_IN_CONFIG_FILE);
-}
-
-function readOptInEnabled(configPath: string): string[] {
+function readOptInEnabledByScope(scope: MCPConfigScope): string[] {
 	try {
-		if (!fs.existsSync(configPath)) return [];
-		const data = JSON.parse(
-			fs.readFileSync(configPath, 'utf-8'),
-		) as OptInMCPConfig;
-		return Array.isArray(data.enabledTools) ? data.enabledTools : [];
+		const settings = readSettings(scope);
+		return Array.isArray(settings.optInMCPTools) ? settings.optInMCPTools : [];
 	} catch {
 		return [];
 	}
 }
 
-function writeOptInEnabled(configPath: string, enabledTools: string[]): void {
-	const dir = path.dirname(configPath);
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, {recursive: true});
-	}
-	fs.writeFileSync(
-		configPath,
-		JSON.stringify({enabledTools} satisfies OptInMCPConfig, null, 2),
-		'utf-8',
-	);
+function writeOptInEnabledByScope(
+	scope: MCPConfigScope,
+	enabledTools: string[],
+): void {
+	updateSettings(scope, settings => {
+		settings.optInMCPTools = enabledTools;
+	});
 }
 
-function readConfig(configPath: string): string[] {
+function readDisabledByScope(scope: MCPConfigScope): string[] {
 	try {
-		if (!fs.existsSync(configPath)) return [];
-		const data = JSON.parse(
-			fs.readFileSync(configPath, 'utf-8'),
-		) as DisabledMCPToolsConfig;
-		return Array.isArray(data.disabledTools) ? data.disabledTools : [];
+		const settings = readSettings(scope);
+		return Array.isArray(settings.disabledMCPTools)
+			? settings.disabledMCPTools
+			: [];
 	} catch {
 		return [];
 	}
 }
 
-function writeConfig(configPath: string, disabledTools: string[]): void {
-	const dir = path.dirname(configPath);
-	if (!fs.existsSync(dir)) {
-		fs.mkdirSync(dir, {recursive: true});
-	}
-	fs.writeFileSync(
-		configPath,
-		JSON.stringify({disabledTools} satisfies DisabledMCPToolsConfig, null, 2),
-		'utf-8',
-	);
+function writeDisabledByScope(
+	scope: MCPConfigScope,
+	disabledTools: string[],
+): void {
+	updateSettings(scope, settings => {
+		settings.disabledMCPTools = disabledTools;
+	});
 }
 
 function makeToolKey(serviceName: string, toolName: string): string {
@@ -99,8 +67,8 @@ function isDefaultOptInDisabledKey(key: string): boolean {
  * Merged opt-in enabled tool keys (project ∪ global). Used for cache invalidation.
  */
 export function getOptInEnabledMCPKeysMerged(): string[] {
-	const g = readOptInEnabled(getGlobalOptInPath());
-	const p = readOptInEnabled(getProjectOptInPath());
+	const g = readOptInEnabledByScope('global');
+	const p = readOptInEnabledByScope('project');
 	return [...new Set([...g, ...p])];
 }
 
@@ -108,8 +76,8 @@ export function getOptInEnabledMCPKeysMerged(): string[] {
  * 获取合并后的被禁用工具列表（project + global 去重合并）
  */
 export function getDisabledMCPTools(): string[] {
-	const globalDisabled = readConfig(getGlobalConfigPath());
-	const projectDisabled = readConfig(getProjectConfigPath());
+	const globalDisabled = readDisabledByScope('global');
+	const projectDisabled = readDisabledByScope('project');
 	return [...new Set([...globalDisabled, ...projectDisabled])];
 }
 
@@ -117,9 +85,7 @@ export function getDisabledMCPTools(): string[] {
  * 获取指定作用域的被禁用工具列表
  */
 export function getDisabledMCPToolsByScope(scope: MCPConfigScope): string[] {
-	const configPath =
-		scope === 'project' ? getProjectConfigPath() : getGlobalConfigPath();
-	return readConfig(configPath);
+	return readDisabledByScope(scope);
 }
 
 /**
@@ -147,9 +113,7 @@ export function toggleMCPTool(
 	const key = makeToolKey(serviceName, toolName);
 
 	if (isDefaultOptInDisabledKey(key)) {
-		const configPath =
-			scope === 'project' ? getProjectOptInPath() : getGlobalOptInPath();
-		const enabled = [...readOptInEnabled(configPath)];
+		const enabled = [...readOptInEnabledByScope(scope)];
 		const index = enabled.indexOf(key);
 		let newEnabled: boolean;
 		if (index >= 0) {
@@ -159,13 +123,11 @@ export function toggleMCPTool(
 			enabled.push(key);
 			newEnabled = true;
 		}
-		writeOptInEnabled(configPath, enabled);
+		writeOptInEnabledByScope(scope, enabled);
 		return newEnabled;
 	}
 
-	const configPath =
-		scope === 'project' ? getProjectConfigPath() : getGlobalConfigPath();
-	const disabled = readConfig(configPath);
+	const disabled = readDisabledByScope(scope);
 	const index = disabled.indexOf(key);
 	let newEnabled: boolean;
 
@@ -177,7 +139,7 @@ export function toggleMCPTool(
 		newEnabled = false;
 	}
 
-	writeConfig(configPath, disabled);
+	writeDisabledByScope(scope, disabled);
 	return newEnabled;
 }
 

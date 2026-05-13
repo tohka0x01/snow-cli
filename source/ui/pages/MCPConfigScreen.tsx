@@ -1,13 +1,19 @@
 import React, {useEffect, useState} from 'react';
 import {Box, Text, useInput} from 'ink';
 import {spawn, execSync} from 'child_process';
-import {writeFileSync, readFileSync, existsSync, mkdirSync} from 'fs';
+import {
+	writeFileSync,
+	readFileSync,
+	existsSync,
+	mkdirSync,
+	unlinkSync,
+} from 'fs';
 import {join} from 'path';
 import {platform} from 'os';
 import {
 	getGlobalMCPConfig,
 	getProjectMCPConfig,
-	getGlobalMCPConfigFilePath,
+	updateMCPConfig,
 	validateMCPConfig,
 	type MCPConfigScope,
 } from '../../utils/config/apiConfig.js';
@@ -76,11 +82,17 @@ function getSystemEditor(): string | null {
 	return null;
 }
 
+/**
+ * The "config file" for MCP is now a section inside the unified `settings.json`.
+ * For the in-IDE editor flow we keep using a sidecar draft file so the user can
+ * still edit only the MCP portion — the parsed result is written back through
+ * `updateMCPConfig` (see openEditorForScope below), which targets settings.json.
+ */
 function getConfigFilePath(scope: MCPConfigScope): string {
 	if (scope === 'project') {
-		return join(process.cwd(), '.snow', 'mcp-config.json');
+		return join(process.cwd(), '.snow', 'mcp-config.draft.json');
 	}
-	return getGlobalMCPConfigFilePath();
+	return join(process.cwd(), '.snow', 'mcp-config.global.draft.json');
 }
 
 function getConfigByScope(scope: MCPConfigScope) {
@@ -162,13 +174,14 @@ function openEditorForScope(
 				const validationErrors = validateMCPConfig(parsedConfig);
 
 				if (validationErrors.length === 0) {
+					// Persist parsed MCP config back into the unified settings.json
+					updateMCPConfig(parsedConfig, scope);
 					const scopeLabel =
 						scope === 'project'
 							? i18nMessages.scopeProjectLabel
 							: i18nMessages.scopeGlobalLabel;
 					console.log(i18nMessages.savedSuccess.replace('{scope}', scopeLabel));
 				} else {
-					writeFileSync(configFilePath, originalContent, 'utf8');
 					console.error(
 						i18nMessages.configErrors.replace(
 							'{errors}',
@@ -178,8 +191,15 @@ function openEditorForScope(
 					console.error(i18nMessages.reverted);
 				}
 			} catch {
-				writeFileSync(configFilePath, originalContent, 'utf8');
 				console.error(i18nMessages.invalidJson);
+			}
+
+			// The draft file only exists as a scratch area for the external editor.
+			// Clean it up so it doesn't show up in the project tree.
+			try {
+				unlinkSync(configFilePath);
+			} catch {
+				// ignore cleanup errors
 			}
 		}
 
@@ -207,12 +227,12 @@ export default function MCPConfigScreen({onBack}: Props) {
 	const options: Array<{label: string; desc: string; scope: MCPConfigScope}> = [
 		{
 			label: t.mcpConfigScreen.scopeProject,
-			desc: '.snow/mcp-config.json',
+			desc: '.snow/settings.json (mcpServers)',
 			scope: 'project',
 		},
 		{
 			label: t.mcpConfigScreen.scopeGlobal,
-			desc: '~/.snow/mcp-config.json',
+			desc: '~/.snow/settings.json (mcpServers)',
 			scope: 'global',
 		},
 	];

@@ -443,6 +443,20 @@ export class TextBuffer {
 			return;
 		}
 
+		// Fallback：裸文本标签（如 ESC 回滚后恢复的 [image #N] / [Skill:xx] / [GitLine:xx] / [Paste ... lines #N] / [»...] 以及 #agent_xxx）
+		const tagAtEnd = this.findBareTagEndingAt(this.cursorIndex);
+		if (tagAtEnd) {
+			const before = cpSlice(this.content, 0, tagAtEnd.cpStart);
+			const after = cpSlice(this.content, tagAtEnd.cpStart + tagAtEnd.phCpLen);
+			this.content = before + after;
+			this.cursorIndex = tagAtEnd.cpStart;
+			this.lastTextPlaceholderId = null;
+			this.lastTextPlaceholderAt = 0;
+			this.recalculateVisualState();
+			this.scheduleUpdate();
+			return;
+		}
+
 		const before = cpSlice(this.content, 0, this.cursorIndex - 1);
 		const after = cpSlice(this.content, this.cursorIndex);
 		this.content = before + after;
@@ -467,6 +481,23 @@ export class TextBuffer {
 			this.content = before + after;
 			this.cursorIndex = phAtStart.cpStart;
 			this.removePlaceholderRecord(phAtStart.id);
+			this.lastTextPlaceholderId = null;
+			this.lastTextPlaceholderAt = 0;
+			this.recalculateVisualState();
+			this.scheduleUpdate();
+			return;
+		}
+
+		// Fallback：裸文本标签（同 backspace）
+		const tagAtStart = this.findBareTagStartingAt(this.cursorIndex);
+		if (tagAtStart) {
+			const before = cpSlice(this.content, 0, tagAtStart.cpStart);
+			const after = cpSlice(
+				this.content,
+				tagAtStart.cpStart + tagAtStart.phCpLen,
+			);
+			this.content = before + after;
+			this.cursorIndex = tagAtStart.cpStart;
 			this.lastTextPlaceholderId = null;
 			this.lastTextPlaceholderAt = 0;
 			this.recalculateVisualState();
@@ -504,6 +535,92 @@ export class TextBuffer {
 		cursorCp: number,
 	): {id: string; cpStart: number; phCpLen: number} | null {
 		const boundaries = this.collectPlaceholderBoundaries();
+		for (const b of boundaries) {
+			if (cursorCp === b.cpStart) {
+				return b;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * 收集当前 content 中“裸文本标签”的 cp 边界。
+	 * 与 placeholderStorage 无关，仅靠文本模式识别。用于处理 ESC 回滚后被还原为纯文本的标签，
+	 * 以及本身就是裸文本的子代理标签（`#agent_xxx`）。
+	 *
+	 * 识别范围（必须是与预定义模式严格匹配的完整标签）：
+	 *   - `[Paste N lines #M]`
+	 *   - `[image #N]`
+	 *   - `[Skill:xxx]`
+	 *   - `[GitLine:xxx]`
+	 *   - `[»...]` / `[»☆...]`
+	 *   - `#agent_xxx`（词边界：前面为行首/空白）
+	 *
+	 * 为了与 “一个标签 + 尾随空格” 的预期一致，[..] 样式标签若后面紧跟一个空格，则该空格也会被计入边界。
+	 */
+	private collectBareTagBoundaries(): Array<{
+		id: string;
+		cpStart: number;
+		phCpLen: number;
+	}> {
+		const result: Array<{id: string; cpStart: number; phCpLen: number}> = [];
+		const text = this.content;
+
+		// 统一边界收集器：传入 strStart/strEnd（字符索引，不是 cp）
+		const pushRange = (strStart: number, strEnd: number, tag: string) => {
+			// 如果标签后紧跟一个普通空格（不是\n），将该空格也包含进去
+			let actualEnd = strEnd;
+			if (text[actualEnd] === ' ') {
+				actualEnd += 1;
+			}
+			const cpStart = cpLen(text.substring(0, strStart));
+			const cpEnd = cpLen(text.substring(0, actualEnd));
+			result.push({
+				id: `bare_${strStart}_${tag}`,
+				cpStart,
+				phCpLen: cpEnd - cpStart,
+			});
+		};
+
+		// 1) [..] 样式占位符标签
+		const bracketPattern =
+			/\[(?:Paste \d+ lines #\d+|image #\d+|Skill:[^\]]+|GitLine:[^\]]+|»[^\]]*)\]/g;
+		let m: RegExpExecArray | null;
+		while ((m = bracketPattern.exec(text)) !== null) {
+			pushRange(m.index, m.index + m[0].length, 'bracket');
+		}
+
+		// 2) #agent_xxx 裸文本子代理标签：要求前面是行首或空白（不能是字母/数字/[]）
+		// 只匹配 `#` + ASCII 开头的标识符，避免误伤中文 #标题 这类常规文本
+		const agentPattern = /(^|\s)(#[A-Za-z][\w-]*)/g;
+		while ((m = agentPattern.exec(text)) !== null) {
+			const leading = m[1] ?? '';
+			const tag = m[2] ?? '';
+			if (!tag) continue;
+			const start = m.index + leading.length;
+			pushRange(start, start + tag.length, 'agent');
+		}
+
+		result.sort((a, b) => a.cpStart - b.cpStart);
+		return result;
+	}
+
+	private findBareTagEndingAt(
+		cursorCp: number,
+	): {id: string; cpStart: number; phCpLen: number} | null {
+		const boundaries = this.collectBareTagBoundaries();
+		for (const b of boundaries) {
+			if (cursorCp === b.cpStart + b.phCpLen) {
+				return b;
+			}
+		}
+		return null;
+	}
+
+	private findBareTagStartingAt(
+		cursorCp: number,
+	): {id: string; cpStart: number; phCpLen: number} | null {
+		const boundaries = this.collectBareTagBoundaries();
 		for (const b of boundaries) {
 			if (cursorCp === b.cpStart) {
 				return b;

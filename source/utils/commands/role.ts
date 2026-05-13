@@ -5,42 +5,38 @@ import {
 import fs from 'fs/promises';
 import path from 'path';
 import {homedir} from 'os';
-import {existsSync, readdirSync, readFileSync} from 'fs';
+import {existsSync, readdirSync} from 'fs';
 import crypto from 'crypto';
+import {
+	readSettings,
+	updateSettings,
+	type SettingsScope,
+	type UnifiedSettings,
+} from '../config/unifiedSettings.js';
 
 // Role location type
 export type RoleLocation = 'global' | 'project';
 
-type RoleConfig = {
-	activeRoleId?: string;
-	overrideRoleIds?: string[];
-};
+type RoleConfig = NonNullable<UnifiedSettings['role']>;
 
 const DEFAULT_ACTIVE_ROLE_ID = 'active';
 
-function getRoleConfigPath(
-	location: RoleLocation,
-	projectRoot?: string,
-): string {
-	if (location === 'global') {
-		return path.join(homedir(), '.snow', 'role.json');
-	}
-	const root = projectRoot || process.cwd();
-	return path.join(root, '.snow', 'role.json');
+/**
+ * Role metadata (activeRoleId / overrideRoleIds) is now stored in the unified
+ * settings.json (`role` key). Role MARKDOWN files (`ROLE.md`,
+ * `ROLE-<hash>.md`) are still kept as plain files in the project / home
+ * directory.
+ */
+function settingsScope(location: RoleLocation): SettingsScope {
+	return location === 'global' ? 'global' : 'project';
 }
 
 function readRoleConfig(
 	location: RoleLocation,
 	projectRoot?: string,
 ): RoleConfig {
-	const configPath = getRoleConfigPath(location, projectRoot);
-	if (!existsSync(configPath)) return {};
-	try {
-		const content = readFileSync(configPath, 'utf-8');
-		return JSON.parse(content) as RoleConfig;
-	} catch {
-		return {};
-	}
+	const settings = readSettings(settingsScope(location), projectRoot);
+	return settings.role ?? {};
 }
 
 async function writeRoleConfig(
@@ -48,10 +44,13 @@ async function writeRoleConfig(
 	config: RoleConfig,
 	projectRoot?: string,
 ): Promise<void> {
-	const configPath = getRoleConfigPath(location, projectRoot);
-	const dir = path.dirname(configPath);
-	await fs.mkdir(dir, {recursive: true});
-	await fs.writeFile(configPath, JSON.stringify(config, null, 2), 'utf-8');
+	updateSettings(
+		settingsScope(location),
+		settings => {
+			settings.role = config;
+		},
+		projectRoot,
+	);
 }
 
 function resolveActiveRoleId(
@@ -283,7 +282,12 @@ export async function switchActiveRole(
 			return {success: false, error: 'Role not found'};
 		}
 
-		await writeRoleConfig(location, {activeRoleId: roleId}, projectRoot);
+		const previous = readRoleConfig(location, projectRoot);
+		await writeRoleConfig(
+			location,
+			{...previous, activeRoleId: roleId},
+			projectRoot,
+		);
 		return {success: true};
 	} catch (error) {
 		return {
@@ -353,7 +357,7 @@ export async function deleteRole(
 		if (config.activeRoleId === roleId) {
 			await writeRoleConfig(
 				location,
-				{activeRoleId: DEFAULT_ACTIVE_ROLE_ID},
+				{...config, activeRoleId: DEFAULT_ACTIVE_ROLE_ID},
 				projectRoot,
 			);
 		}

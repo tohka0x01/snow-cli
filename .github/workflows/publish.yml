@@ -56,9 +56,9 @@ jobs:
 
             ### What's New
 
-            - Compatible with the .agents/skills/ directory
-            - Expose all request scheme thinking configurations to StatusLine
-            - Optimize the ace-file-outline tool
+            - Added /goal command and related features
+            - File list supports multiple selection with spaces
+            - Optimized some display effects and memory leak issues
             
             ### Installation
             ```bash

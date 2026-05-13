@@ -346,14 +346,14 @@ export default function SensitiveCommandConfigScreen({
 				label: t.sensitiveCommandConfig.scopeProject,
 				desc: isReset
 					? t.sensitiveCommandConfig.resetProjectDesc
-					: '.snow/sensitive-commands.json',
+					: '.snow/settings.json (sensitiveCommands)',
 				scope: 'project',
 			},
 			{
 				label: t.sensitiveCommandConfig.scopeGlobal,
 				desc: isReset
 					? t.sensitiveCommandConfig.resetGlobalDesc
-					: '~/.snow/sensitive-commands.json',
+					: '~/.snow/settings.json (sensitiveCommands)',
 				scope: 'global',
 			},
 		];

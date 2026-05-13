@@ -1,6 +1,9 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import {
+	readSettings,
+	updateSettings,
+	type SettingsScope,
+	type UnifiedSettings,
+} from './unifiedSettings.js';
 
 export interface ProjectSettings {
 	toolSearchEnabled?: boolean;
@@ -14,50 +17,46 @@ export interface ProjectSettings {
 	teamMode?: boolean;
 }
 
-const PROJECT_SNOW_DIR = path.join(process.cwd(), '.snow');
-const GLOBAL_SNOW_DIR = path.join(os.homedir(), '.snow');
-const PROJECT_SETTINGS_FILE = path.join(PROJECT_SNOW_DIR, 'settings.json');
-const GLOBAL_SETTINGS_FILE = path.join(GLOBAL_SNOW_DIR, 'settings.json');
-
 export const DEFAULT_SUB_AGENT_MAX_SPAWN_DEPTH = 1;
 
-function ensureSnowDir(): void {
-	if (!fs.existsSync(PROJECT_SNOW_DIR)) {
-		fs.mkdirSync(PROJECT_SNOW_DIR, {recursive: true});
-	}
-}
-
+/**
+ * Backwards-compatible loader: prefer project scope, fall back to global, then
+ * default. The new storage backend is `unifiedSettings`, so this just reads the
+ * relevant top-level fields from `settings.json`.
+ */
 function loadSettings(): ProjectSettings {
-	try {
-		// 优先读取项目配置
-		if (fs.existsSync(PROJECT_SETTINGS_FILE)) {
-			const content = fs.readFileSync(PROJECT_SETTINGS_FILE, 'utf-8');
-			return JSON.parse(content) as ProjectSettings;
-		}
+	const project = readSettings('project');
+	const global = readSettings('global');
 
-		// 如果项目配置不存在，读取全局配置
-		if (fs.existsSync(GLOBAL_SETTINGS_FILE)) {
-			const content = fs.readFileSync(GLOBAL_SETTINGS_FILE, 'utf-8');
-			return JSON.parse(content) as ProjectSettings;
-		}
+	const pick = <K extends keyof ProjectSettings>(
+		key: K,
+	): ProjectSettings[K] | undefined => {
+		const fromProject = (project as ProjectSettings)[key];
+		if (fromProject !== undefined) return fromProject;
+		return (global as ProjectSettings)[key];
+	};
 
-		return {};
-	} catch {
-		return {};
-	}
+	return {
+		toolSearchEnabled: pick('toolSearchEnabled'),
+		autoFormatEnabled: pick('autoFormatEnabled'),
+		subAgentMaxSpawnDepth: pick('subAgentMaxSpawnDepth'),
+		fileListDisplayMode: pick('fileListDisplayMode'),
+		yoloMode: pick('yoloMode'),
+		planMode: pick('planMode'),
+		vulnerabilityHuntingMode: pick('vulnerabilityHuntingMode'),
+		hybridCompressEnabled: pick('hybridCompressEnabled'),
+		teamMode: pick('teamMode'),
+	};
 }
 
-function saveSettings(settings: ProjectSettings): void {
-	try {
-		ensureSnowDir();
-		fs.writeFileSync(
-			PROJECT_SETTINGS_FILE,
-			JSON.stringify(settings, null, 2),
-			'utf-8',
-		);
-	} catch {
-		// Ignore write errors
-	}
+function setField<K extends keyof ProjectSettings>(
+	key: K,
+	value: ProjectSettings[K],
+	scope: SettingsScope = 'project',
+): void {
+	updateSettings(scope, settings => {
+		(settings as UnifiedSettings)[key] = value as UnifiedSettings[K];
+	});
 }
 
 function normalizeSubAgentMaxSpawnDepth(depth: unknown): number {
@@ -75,9 +74,7 @@ export function getToolSearchEnabled(): boolean {
 }
 
 export function setToolSearchEnabled(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.toolSearchEnabled = enabled;
-	saveSettings(settings);
+	setField('toolSearchEnabled', enabled);
 }
 
 export function getAutoFormatEnabled(): boolean {
@@ -86,9 +83,7 @@ export function getAutoFormatEnabled(): boolean {
 }
 
 export function setAutoFormatEnabled(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.autoFormatEnabled = enabled;
-	saveSettings(settings);
+	setField('autoFormatEnabled', enabled);
 }
 
 export function getSubAgentMaxSpawnDepth(): number {
@@ -97,10 +92,8 @@ export function getSubAgentMaxSpawnDepth(): number {
 }
 
 export function setSubAgentMaxSpawnDepth(depth: number): number {
-	const settings = loadSettings();
 	const normalizedDepth = normalizeSubAgentMaxSpawnDepth(depth);
-	settings.subAgentMaxSpawnDepth = normalizedDepth;
-	saveSettings(settings);
+	setField('subAgentMaxSpawnDepth', normalizedDepth);
 	return normalizedDepth;
 }
 
@@ -110,9 +103,7 @@ export function getFileListDisplayMode(): 'list' | 'tree' {
 }
 
 export function setFileListDisplayMode(mode: 'list' | 'tree'): void {
-	const settings = loadSettings();
-	settings.fileListDisplayMode = mode;
-	saveSettings(settings);
+	setField('fileListDisplayMode', mode);
 }
 
 export function getYoloMode(): boolean {
@@ -121,9 +112,7 @@ export function getYoloMode(): boolean {
 }
 
 export function setYoloMode(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.yoloMode = enabled;
-	saveSettings(settings);
+	setField('yoloMode', enabled);
 }
 
 export function getPlanMode(): boolean {
@@ -132,9 +121,7 @@ export function getPlanMode(): boolean {
 }
 
 export function setPlanMode(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.planMode = enabled;
-	saveSettings(settings);
+	setField('planMode', enabled);
 }
 
 export function getVulnerabilityHuntingMode(): boolean {
@@ -143,9 +130,7 @@ export function getVulnerabilityHuntingMode(): boolean {
 }
 
 export function setVulnerabilityHuntingMode(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.vulnerabilityHuntingMode = enabled;
-	saveSettings(settings);
+	setField('vulnerabilityHuntingMode', enabled);
 }
 
 export function getHybridCompressEnabled(): boolean {
@@ -154,9 +139,7 @@ export function getHybridCompressEnabled(): boolean {
 }
 
 export function setHybridCompressEnabled(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.hybridCompressEnabled = enabled;
-	saveSettings(settings);
+	setField('hybridCompressEnabled', enabled);
 }
 
 export function getTeamMode(): boolean {
@@ -165,7 +148,5 @@ export function getTeamMode(): boolean {
 }
 
 export function setTeamMode(enabled: boolean): void {
-	const settings = loadSettings();
-	settings.teamMode = enabled;
-	saveSettings(settings);
+	setField('teamMode', enabled);
 }

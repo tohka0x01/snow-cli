@@ -569,7 +569,7 @@ export default function MCPInfoPanel({onClose}: Props) {
 							{selectedServiceForTools.name === 'filesystem' && (
 								<Text color={theme.colors.menuSecondary} dimColor>
 									replaceedit: default off — Tab enables (writes
-									.snow/opt-in-mcp-tools.json).
+									.snow/settings.json optInMCPTools).
 								</Text>
 							)}
 						</Box>

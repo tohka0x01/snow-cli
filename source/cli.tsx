@@ -168,6 +168,15 @@ import {spawn} from 'child_process';
 import {readFileSync} from 'fs';
 import {join} from 'path';
 import {fileURLToPath} from 'url';
+import {runLegacyConfigMigration} from './utils/config/legacyConfigMigration.js';
+
+// Migrate legacy split .snow/*.json files into the unified settings.json before
+// anything else touches config. Safe no-op when nothing legacy is present.
+try {
+	runLegacyConfigMigration();
+} catch {
+	// Migration failures should never block startup.
+}
 
 // Read version from package.json
 const __dirname = fileURLToPath(new URL('.', import.meta.url));

@@ -7,6 +7,7 @@ import {
 	mkdirSync,
 	unlinkSync,
 } from 'fs';
+import {readSettings, updateSettings} from './unifiedSettings.js';
 
 export type RequestMethod = 'chat' | 'responses' | 'gemini' | 'anthropic';
 export interface ThinkingConfig {
@@ -166,16 +167,12 @@ export const SEARCH_ENGINES_DIR = join(CONFIG_DIR, 'plugin', 'search_engines');
 
 export type MCPConfigScope = 'global' | 'project';
 
-function getProjectMCPConfigDir(): string {
-	return join(process.cwd(), '.snow');
-}
-
-function getProjectMCPConfigFilePath(): string {
-	return join(getProjectMCPConfigDir(), 'mcp-config.json');
-}
-
+/**
+ * Path to the unified global settings file. The MCP config now lives under
+ * `mcpServers` inside this file (previously a standalone `~/.snow/mcp-config.json`).
+ */
 export function getGlobalMCPConfigFilePath(): string {
-	return MCP_CONFIG_FILE;
+	return join(CONFIG_DIR, 'settings.json');
 }
 
 /**
@@ -219,7 +216,6 @@ function normalizeRequestMethod(method: unknown): RequestMethod {
 }
 
 const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
-const MCP_CONFIG_FILE = join(CONFIG_DIR, 'mcp-config.json');
 
 function ensureConfigDirectory(): void {
 	if (!existsSync(CONFIG_DIR)) {
@@ -414,62 +410,57 @@ export function updateMCPConfig(
 	mcpConfig: MCPConfig,
 	scope: MCPConfigScope = 'global',
 ): void {
-	const configData = JSON.stringify(mcpConfig, null, 2);
-	if (scope === 'project') {
-		const projectConfigDir = getProjectMCPConfigDir();
-		if (!existsSync(projectConfigDir)) {
-			mkdirSync(projectConfigDir, {recursive: true});
+	try {
+		updateSettings(scope, settings => {
+			settings.mcpServers = mcpConfig.mcpServers as Record<string, unknown>;
+		});
+	} catch (error) {
+		throw new Error(
+			scope === 'project'
+				? `Failed to save project MCP configuration: ${error}`
+				: `Failed to save MCP configuration: ${error}`,
+		);
+	}
+}
+
+function readMCPServersFromSettings(scope: MCPConfigScope): MCPConfig {
+	try {
+		const settings = readSettings(scope);
+		const raw = settings.mcpServers;
+		if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+			return {mcpServers: raw as MCPConfig['mcpServers']};
 		}
-		try {
-			writeFileSync(getProjectMCPConfigFilePath(), configData, 'utf8');
-		} catch (error) {
-			throw new Error(`Failed to save project MCP configuration: ${error}`);
-		}
-	} else {
-		ensureConfigDirectory();
-		try {
-			writeFileSync(MCP_CONFIG_FILE, configData, 'utf8');
-		} catch (error) {
-			throw new Error(`Failed to save MCP configuration: ${error}`);
-		}
+		return cloneDefaultMCPConfig();
+	} catch {
+		return cloneDefaultMCPConfig();
 	}
 }
 
 /**
- * 读取全局 MCP 配置 (~/.snow/mcp-config.json)
+ * 读取全局 MCP 配置 (~/.snow/settings.json)
  */
 export function getGlobalMCPConfig(): MCPConfig {
 	ensureConfigDirectory();
 
-	if (!existsSync(MCP_CONFIG_FILE)) {
+	const settings = readSettings('global');
+	if (
+		!settings.mcpServers ||
+		typeof settings.mcpServers !== 'object' ||
+		Array.isArray(settings.mcpServers)
+	) {
 		const defaultMCPConfig = cloneDefaultMCPConfig();
 		updateMCPConfig(defaultMCPConfig, 'global');
 		return defaultMCPConfig;
 	}
 
-	try {
-		const configData = readFileSync(MCP_CONFIG_FILE, 'utf8');
-		return JSON.parse(configData) as MCPConfig;
-	} catch {
-		return cloneDefaultMCPConfig();
-	}
+	return readMCPServersFromSettings('global');
 }
 
 /**
- * 读取项目级 MCP 配置 (<project>/.snow/mcp-config.json)
+ * 读取项目级 MCP 配置 (<project>/.snow/settings.json)
  */
 export function getProjectMCPConfig(): MCPConfig {
-	const configPath = getProjectMCPConfigFilePath();
-	if (!existsSync(configPath)) {
-		return cloneDefaultMCPConfig();
-	}
-
-	try {
-		const configData = readFileSync(configPath, 'utf8');
-		return JSON.parse(configData) as MCPConfig;
-	} catch {
-		return cloneDefaultMCPConfig();
-	}
+	return readMCPServersFromSettings('project');
 }
 
 /**

@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import {loadCodebaseConfig} from '../../utils/config/codebaseConfig.js';
+import {readSettings} from '../../utils/config/unifiedSettings.js';
 
 /**
  * Get the system prompt with ROLE.md content if it exists
@@ -39,25 +40,15 @@ export function getSystemPromptWithRole(
 
 	const getActiveRolePath = (location: 'project' | 'global'): string | null => {
 		try {
+			// ROLE.md / ROLE-<id>.md live in: project root (project scope) or ~/.snow (global scope).
+			// activeRoleId is now stored in the unified settings.json (.snow/settings.json).
 			const baseDir =
 				location === 'project'
 					? process.cwd()
 					: path.join(os.homedir(), '.snow');
-			const configPath =
-				location === 'project'
-					? path.join(baseDir, '.snow', 'role.json')
-					: path.join(baseDir, 'role.json');
 
-			let activeRoleId: string | undefined;
-			if (fs.existsSync(configPath)) {
-				try {
-					const raw = fs.readFileSync(configPath, 'utf-8');
-					const parsed = JSON.parse(raw) as {activeRoleId?: string};
-					activeRoleId = parsed.activeRoleId;
-				} catch {
-					// ignore
-				}
-			}
+			const settings = readSettings(location);
+			const activeRoleId = settings.role?.activeRoleId;
 
 			if (!activeRoleId || activeRoleId === 'active') {
 				return path.join(baseDir, 'ROLE.md');
@@ -242,30 +233,16 @@ export function getOverrideRoleContent(): string | null {
 		location: 'project' | 'global',
 	): {path: string; isOverride: boolean} | null => {
 		try {
+			// Role metadata moved to unified settings.json (.snow/settings.json).
 			const baseDir =
 				location === 'project'
 					? process.cwd()
 					: path.join(os.homedir(), '.snow');
-			const configPath =
-				location === 'project'
-					? path.join(baseDir, '.snow', 'role.json')
-					: path.join(baseDir, 'role.json');
 
-			let activeRoleId: string | undefined;
-			let overrideRoleIds: string[] = [];
-			if (fs.existsSync(configPath)) {
-				try {
-					const raw = fs.readFileSync(configPath, 'utf-8');
-					const parsed = JSON.parse(raw) as {
-						activeRoleId?: string;
-						overrideRoleIds?: string[];
-					};
-					activeRoleId = parsed.activeRoleId;
-					overrideRoleIds = parsed.overrideRoleIds || [];
-				} catch {
-					// ignore
-				}
-			}
+			const settings = readSettings(location);
+			const roleSettings = settings.role ?? {};
+			const activeRoleId = roleSettings.activeRoleId;
+			const overrideRoleIds = roleSettings.overrideRoleIds || [];
 
 			const resolvedActiveId =
 				!activeRoleId || activeRoleId === 'active' ? 'active' : activeRoleId;

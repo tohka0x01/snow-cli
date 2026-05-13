@@ -849,6 +849,30 @@ export default function ChatInput({
 		return match[2] && match[2].length > 0 ? hint : ` ${hint}`;
 	}, [buffer.text]);
 
+	// 当输入为以 `/cmd` 开头且 cmd 命中已注册指令时，计算高亮长度（含开头的 `/`）。
+	// 用于在输入框中以主题色高亮“完整指令”片段，方便用户确认命令已被识别。
+	const completedCommandLength = useMemo(() => {
+		const text = buffer.text;
+		if (!text.startsWith('/')) return 0;
+		const match = text.match(/^\/([a-zA-Z0-9_-]+)(?:\s|$)/);
+		if (!match) return 0;
+		const cmd = match[1] ?? '';
+		if (!cmd) return 0;
+		const allCommands = getAllCommands();
+		// 精确匹配（如 /help、/clear、/branch ...）
+		const exact = allCommands.some(c => c.name === cmd);
+		if (exact) return 1 + cmd.length;
+		// 前缀型指令（如 agent-、todo-、skills-）：cmd 以 `name` 开头且长度更长
+		const prefixHit = allCommands.some(
+			c =>
+				c.name.endsWith('-') &&
+				cmd.length > c.name.length &&
+				cmd.startsWith(c.name),
+		);
+		if (prefixHit) return 1 + cmd.length;
+		return 0;
+	}, [buffer.text, getAllCommands]);
+
 	const renderContent = () => {
 		if (buffer.text.length > 0) {
 			// Use visual lines for proper wrapping and multi-line support
@@ -889,13 +913,114 @@ export default function ChatInput({
 				);
 			}
 
+			// 渲染单行内容的辅助函数：同时高亮
+			//   1. 首行已识别的完整指令 `/cmd`
+			//   2. 各类 `[...]` 占位符标签（Paste / image / Skill / GitLine / » running-agent）
+			//   3. `#agent_xxx` 裸文本子代理标签（词边界上）
+			const renderLineSegments = (line: string, isFirstLine: boolean) => {
+				type Token = {text: string; highlight: boolean};
+				const tokens: Token[] = [];
+				let plainBuf = '';
+				const flushPlain = () => {
+					if (plainBuf) {
+						tokens.push({text: plainBuf, highlight: false});
+						plainBuf = '';
+					}
+				};
+
+				let i = 0;
+
+				// 1) 首行完整指令高亮
+				if (
+					isFirstLine &&
+					completedCommandLength > 0 &&
+					line.length >= completedCommandLength
+				) {
+					tokens.push({
+						text: line.slice(0, completedCommandLength),
+						highlight: true,
+					});
+					i = completedCommandLength;
+				}
+
+				const isPlaceholderTag = (tag: string) =>
+					/^\[Paste \d+ lines #\d+\]$/.test(tag) ||
+					/^\[image #\d+\]$/.test(tag) ||
+					/^\[Skill:[^\]]+\]$/.test(tag) ||
+					/^\[GitLine:[^\]]+\]$/.test(tag) ||
+					/^\[»[^\]]*\]$/.test(tag);
+
+				while (i < line.length) {
+					const ch = line[i];
+
+					// 2) [...] 占位符标签
+					if (ch === '[') {
+						const closeIdx = line.indexOf(']', i + 1);
+						if (closeIdx !== -1) {
+							const tagText = line.slice(i, closeIdx + 1);
+							if (isPlaceholderTag(tagText)) {
+								flushPlain();
+								// 标签本身高亮；可能紧跟一个分隔空格，空格不高亮
+								tokens.push({text: tagText, highlight: true});
+								i = closeIdx + 1;
+								continue;
+							}
+						}
+					}
+
+					// 3) #agent 裸文本标签：需要词边界（前面是行首或空白，后面是行末或空白）
+					if (ch === '#') {
+						const prevCh = i === 0 ? '' : line[i - 1] ?? '';
+						const leftBoundary = i === 0 || /\s/.test(prevCh);
+						if (leftBoundary) {
+							const rest = line.slice(i);
+							const m = rest.match(/^#[A-Za-z][\w-]*/);
+							if (m) {
+								const nextIdx = i + m[0].length;
+								const nextCh = line[nextIdx];
+								const rightBoundary = !nextCh || /\s/.test(nextCh);
+								if (rightBoundary) {
+									flushPlain();
+									tokens.push({text: m[0], highlight: true});
+									i = nextIdx;
+									continue;
+								}
+							}
+						}
+					}
+
+					plainBuf += ch;
+					i++;
+				}
+				flushPlain();
+
+				if (tokens.length === 0) {
+					return <Text>{line || ' '}</Text>;
+				}
+
+				return (
+					<>
+						{tokens.map((tok, idx) =>
+							tok.highlight ? (
+								<Text key={idx} color={theme.colors.menuInfo} bold>
+									{tok.text}
+								</Text>
+							) : (
+								<Text key={idx}>{tok.text}</Text>
+							),
+						)}
+					</>
+				);
+			};
+
 			for (let i = startLine; i < endLine; i++) {
 				const line = visualLines[i] || '';
+				const isFirstLine = i === 0;
 
 				if (i === cursorRow) {
 					renderedLines.push(
 						<Box key={i} flexDirection="row">
-							<Text>{line || ' '}</Text>
+							{renderLineSegments(line, isFirstLine)}
 							{commandArgsHint && i === visualLines.length - 1 ? (
 								<Text color={theme.colors.menuSecondary} dimColor>
 									{commandArgsHint}
@@ -904,7 +1029,11 @@ export default function ChatInput({
 						</Box>,
 					);
 				} else {
-					renderedLines.push(<Text key={i}>{line || ' '}</Text>);
+					renderedLines.push(
+						<Box key={i} flexDirection="row">
+							{renderLineSegments(line, isFirstLine)}
+						</Box>,
+					);
 				}
 			}
 
