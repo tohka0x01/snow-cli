@@ -712,6 +712,17 @@ export type TranslationKeys = {
 				budgetThousand: string; // {value}
 				budgetTokens: string; // {value}
 			};
+			// Codebase command messages
+			codebase: {
+				notConfigured: string;
+				cannotEnable: string;
+				enabledLabel: string;
+				disabledLabel: string;
+				statusWithFiles: string; // {status} {count} {fileWord}
+				status: string; // {status}
+				fileSingular: string;
+				filePlural: string;
+			};
 		};
 	};
 	// File search list (`@` panel)

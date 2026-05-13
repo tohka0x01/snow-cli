@@ -736,6 +736,19 @@ export const zh: TranslationKeys = {
 				budgetThousand: '{value}K tokens',
 				budgetTokens: '{value} tokens',
 			},
+			// Codebase 命令消息
+			codebase: {
+				notConfigured: '代码库: 尚未配置。请先在 /home 中配置嵌入模型设置。',
+				cannotEnable:
+					'无法启用代码库: 嵌入模型设置未配置。请先在 /home 中配置。',
+				enabledLabel: '已启用',
+				disabledLabel: '已禁用',
+				statusWithFiles:
+					'代码库: 当前项目{status}（将索引 {count} {fileWord}）',
+				status: '代码库: 当前项目{status}',
+				fileSingular: '个文件',
+				filePlural: '个文件',
+			},
 		},
 	},
 	fileList: {

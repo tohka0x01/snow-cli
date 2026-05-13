@@ -786,6 +786,20 @@ export const en: TranslationKeys = {
 				budgetThousand: '{value}K tokens',
 				budgetTokens: '{value} tokens',
 			},
+			// Codebase command messages
+			codebase: {
+				notConfigured:
+					'Codebase: Not configured. Please configure embedding settings in /home first.',
+				cannotEnable:
+					'Cannot enable codebase: Embedding settings not configured. Please configure in /home first.',
+				enabledLabel: 'Enabled',
+				disabledLabel: 'Disabled',
+				statusWithFiles:
+					'Codebase: {status} for this project ({count} {fileWord} will be embedded)',
+				status: 'Codebase: {status} for this project',
+				fileSingular: 'file',
+				filePlural: 'files',
+			},
 		},
 	},
 	fileList: {

@@ -737,6 +737,18 @@ export const zhTW: TranslationKeys = {
 				budgetThousand: '{value}K tokens',
 				budgetTokens: '{value} tokens',
 			},
+			// Codebase 命令訊息
+			codebase: {
+				notConfigured: '代碼庫: 尚未配置。請先在 /home 中配置嵌入模型設定。',
+				cannotEnable:
+					'無法啟用代碼庫: 嵌入模型設定未配置。請先在 /home 中配置。',
+				enabledLabel: '已啟用',
+				disabledLabel: '已停用',
+				statusWithFiles: '代碼庫: 此專案{status}（將索引 {count} {fileWord}）',
+				status: '代碼庫: 此專案{status}',
+				fileSingular: '個檔案',
+				filePlural: '個檔案',
+			},
 		},
 	},
 	fileList: {
