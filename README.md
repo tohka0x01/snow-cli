@@ -31,7 +31,7 @@ _Agentic coding in your terminal_
 
 ## Sponsors
 
-<table width="100%">
+<table width="100%" align="center">
   <thead>
     <tr>
       <th width="50%">Sponsor</th>

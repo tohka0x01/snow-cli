@@ -31,7 +31,7 @@ _在终端中进行 Agentic 编程_
 
 ## 赞助商
 
-<table width="100%">
+<table width="100%" align="center">
   <thead>
     <tr>
       <th width="50%">赞助商</th>
