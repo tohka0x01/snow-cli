@@ -1553,6 +1553,7 @@ export async function executeMCPTool(
 						args.userQuery, // Pass optional userQuery parameter
 						abortSignal, // Pass abort signal
 						onTokenUpdate, // Pass token update callback
+						args.enableAiSummary, // Pass enableAiSummary parameter
 					);
 					// Return object directly, will be JSON.stringify in API layer
 					result = pageContent;

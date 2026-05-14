@@ -264,10 +264,11 @@ export class WebSearchService {
 	 * Fetch and extract content from a web page
 	 * @param url - URL of the web page to fetch
 	 * @param maxLength - Maximum content length (default: 50000 characters)
-	 * @param isUserProvided - Whether the URL is user-provided (true) or from search results (false)
+	 * @param isUserProvided - Whether the URL is user-provided (true) or from search results (false). User-provided URLs ALWAYS skip AI summarization.
 	 * @param userQuery - Optional user query for content extraction using compact model agent
 	 * @param abortSignal - Optional abort signal from main flow
 	 * @param onTokenUpdate - Optional callback to update token count during compression
+	 * @param enableAiSummary - Whether to enable AI summarization for non-user-provided URLs (default: false). Ignored when isUserProvided=true.
 	 * @returns Cleaned page content
 	 */
 	async fetchPage(
@@ -277,6 +278,7 @@ export class WebSearchService {
 		userQuery?: string,
 		abortSignal?: AbortSignal,
 		onTokenUpdate?: (tokenCount: number) => void,
+		enableAiSummary: boolean = false,
 	): Promise<WebPageContent> {
 		let page: Page | null = null;
 
@@ -379,9 +381,9 @@ export class WebSearchService {
 			await page.close();
 
 			// Use compact agent to extract key information if userQuery is provided
-			// Skip compression for user-provided URLs - return full cleaned content
+			// Skip compression for user-provided URLs OR when AI summary is not requested
 			let finalContent = cleanedContent;
-			if (userQuery && !isUserProvided) {
+			if (userQuery && !isUserProvided && enableAiSummary) {
 				try {
 					const {compactAgent} = await import('../agents/compactAgent.js');
 					const isAvailable = await compactAgent.isAvailable();
@@ -457,7 +459,7 @@ export const mcpTools = [
 	{
 		name: 'websearch-fetch',
 		description:
-			'Fetch and read the full content of a web page. Automatically cleans HTML and extracts the main text content, removing ads, navigation, and other noise. **USAGE RULE**: Only fetch ONE page per search - choose the most credible and relevant result (prefer official documentation, reputable tech sites, or well-known sources). **IMPORTANT**: The isUserProvided parameter determines whether content is compressed - user-provided URLs return full cleaned content, while search result URLs use AI compression.',
+			'Fetch and read the full content of a web page. Automatically cleans HTML and extracts the main text content, removing ads, navigation, and other noise. **USAGE RULE**: Only fetch ONE page per search - choose the most credible and relevant result (prefer official documentation, reputable tech sites, or well-known sources). **COMPRESSION CONTROL**: User-provided URLs (isUserProvided=true) ALWAYS return full cleaned content without AI summarization. For AI-discovered URLs (isUserProvided=false), use enableAiSummary to choose: true = compact AI model extracts query-relevant info (80-95% smaller), false = return full cleaned content. Set enableAiSummary=true when you only need targeted facts; set false when you need the original full text.',
 		inputSchema: {
 			type: 'object',
 			properties: {
@@ -477,12 +479,18 @@ export const mcpTools = [
 				isUserProvided: {
 					type: 'boolean',
 					description:
-						'REQUIRED: Whether the URL is directly provided by the user (true) or from search results (false). If true, returns full cleaned content without AI compression. If false, uses compact AI model to extract relevant information based on userQuery.',
+						'REQUIRED: Whether the URL is directly provided by the user (true) or from search results / AI-discovered (false). User-provided URLs ALWAYS skip AI summarization regardless of enableAiSummary.',
+				},
+				enableAiSummary: {
+					type: 'boolean',
+					description:
+						'Whether to apply AI summarization for non-user-provided URLs. Only effective when isUserProvided=false AND userQuery is provided. Default: false (return full cleaned content). Set true when you only need query-relevant information and want to reduce content size by 80-95%.',
+					default: false,
 				},
 				userQuery: {
 					type: 'string',
 					description:
-						"Optional: User's original question or query. Only used when isUserProvided=false for intelligent content extraction - the compact AI model will extract only information relevant to this query, reducing content size by 80-95%.",
+						"Optional: User's original question or query. Only used when isUserProvided=false AND enableAiSummary=true. The compact AI model will extract only information relevant to this query.",
 				},
 			},
 			required: ['url', 'isUserProvided'],

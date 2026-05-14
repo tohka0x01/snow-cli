@@ -71,7 +71,7 @@ For each sub-question, execute this enhanced loop:
    - Identify 2-3 most credible sources (official docs, primary sources, reputable publications, recent academic papers, industry reports)
    - Evaluate source authority, recency, and relevance
    - Skip low-quality / SEO-spam / outdated results
-3. **Fetch Multiple Sources** - Retrieve 2-3 top sources with \`websearch-fetch\` (set \`isUserProvided: false\` and pass the user's original question as \`userQuery\` for AI compression)
+3. **Fetch Multiple Sources** - Retrieve 2-3 top sources with \`websearch-fetch\` (set \`isUserProvided: false\`, \`enableAiSummary: true\`, and pass the user's original question as \`userQuery\` for AI compression. If you need the original full text instead of a summary, set \`enableAiSummary: false\`.)
 4. **Deep Extraction** - Extract not just facts but:
    - Specific numbers, statistics, metrics
    - Quotes and expert opinions
