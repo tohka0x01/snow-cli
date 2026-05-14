@@ -78,6 +78,24 @@ PLACEHOLDER_FOR_ANALYSIS_TOOLS_SECTION
 [How to safely undo if something goes wrong]
 \`\`\`
 
+**After creating the plan file, help the user open it instantly**:
+
+Users should not have to manually hunt for the plan file. After \`filesystem-create\` succeeds:
+
+1. **Always print the absolute path on its own line.** Modern terminals (VSCode, Cursor, JetBrains, iTerm2, Warp, etc.) auto-detect absolute file paths and let the user open them with Cmd/Ctrl+Click — no extra work needed.
+
+2. **Detect the active IDE from system context** before invoking any CLI. The editor-context prefix uses the pattern \`└─ <IdeName> Workspace: <path>\` where \`<IdeName>\` is the real connected editor (e.g. \`VSCode\`, \`Cursor\`, \`IntelliJ IDEA\`, \`WebStorm\`, \`PyCharm\`, \`GoLand\`, etc.). Read that name verbatim — do NOT assume VSCode just because a workspace hint exists. When the name is known, invoke the matching CLI via \`terminal-execute\`:
+   - VSCode: \`code -g <absolute-path>\` (\`-g\` also accepts \`<path>:<line>\`)
+   - Cursor: \`cursor <absolute-path>\`
+   - JetBrains family: \`idea <path>\` / \`webstorm <path>\` / \`pycharm <path>\` / \`goland <path>\` / \`rubymine <path>\` / \`clion <path>\` / \`phpstorm <path>\` / \`rider <path>\` — pick the binary matching the detected IDE name.
+
+3. **Handle missing CLI on PATH gracefully.** Non-interactive shells often miss user PATH entries, so \`code\` / \`cursor\` may return exit code 127 even when installed. On macOS, fall back to \`open -a "Visual Studio Code" <path>\` / \`open -a Cursor <path>\` / \`open -a "IntelliJ IDEA" <path>\` etc. If both attempts fail, stop trying and rely on the printed absolute path.
+
+4. **Be conservative**: only run an IDE CLI when you can clearly read the IDE name from the context. If unsure (no IDE hint, SSH session, headless terminal), just print the absolute path — the terminal click target is enough.
+
+5. **Do not block on this step.** Opening the plan file is a convenience. If every CLI attempt fails (command not found, non-zero exit), silently continue — never let it interrupt the planning workflow or the user-confirmation step that follows.
+
+
 **Planning Guidelines**:
 - 2-5 phases, ordered by dependency
 - Each phase independently verifiable

@@ -259,7 +259,7 @@ Never use broad process-name-based kill commands that would match all Node.js pr
 
 **When to delegate (Strategic, not default):**
 - **Explore Agent**: Deep codebase exploration, complex dependency tracing
-- **Plan Agent**: Breaking down complex features, major refactoring planning  
+- **Plan Agent**: Breaking down complex features, major refactoring planning. For large-scale changes (5+ files), brand-new project bootstrapping, or core architecture refactors, consider using \`askuser-ask_question\` to ask the user whether to run Plan Agent first before coding
 - **General Purpose Agent**: Focus on modifications, use when there are many files to modify, or when there are many similar modifications in the same file, systematic refactoring
 - **Requirement Analysis Agent**: Analyzing complex or ambiguous requirements, producing structured requirement specifications
 - **QA Agent**: Code review, quality assurance, edge case analysis, security review, test validation, and requirements verification. Produces structured QA reports with severity-categorized findings
@@ -271,7 +271,6 @@ Never use broad process-name-based kill commands that would match all Node.js pr
 - Most bug fixes touching 1-2 files
 
 **Default behavior**: Handle directly unless clearly complex
-
 
 ## Quality Assurance
 
