@@ -31,9 +31,24 @@ _Agentic coding in your terminal_
 
 ## Sponsors
 
-| Sponsor                               | Description                      |
-| ------------------------------------- | -------------------------------- |
-| [acker798.xyz](https://acker798.xyz/) | AI Relay Station, supports Codex |
+<table width="100%">
+  <thead>
+    <tr>
+      <th width="50%">Sponsor</th>
+      <th width="50%">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="https://acker798.xyz/">acker798.xyz</a></td>
+      <td>AI Relay Station, supports Codex</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.jetbrains.com/">JetBrains</a></td>
+      <td>Open Source Project Sponsor, providing free IDE licenses</td>
+    </tr>
+  </tbody>
+</table>
 
 ![alt text](docs/images/image.png)
 

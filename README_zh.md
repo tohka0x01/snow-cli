@@ -31,9 +31,24 @@ _在终端中进行 Agentic 编程_
 
 ## 赞助商
 
-| 赞助商                                | 介绍                  |
-| ------------------------------------- | --------------------- |
-| [acker798.xyz](https://acker798.xyz/) | AI 中转站，支持 Codex |
+<table width="100%">
+  <thead>
+    <tr>
+      <th width="50%">赞助商</th>
+      <th width="50%">介绍</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="https://acker798.xyz/">acker798.xyz</a></td>
+      <td>AI 中转站，支持 Codex</td>
+    </tr>
+    <tr>
+      <td><a href="https://www.jetbrains.com/">JetBrains</a></td>
+      <td>开源项目赞助者，提供全套 IDE 免费许可证</td>
+    </tr>
+  </tbody>
+</table>
 
 ![alt text](docs/images/image_zh.png)
 
