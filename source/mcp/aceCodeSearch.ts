@@ -7,7 +7,8 @@ import {type FzfResultItem, Fzf} from 'fzf';
 import {processManager} from '../utils/core/processManager.js';
 import {logger} from '../utils/core/logger.js';
 // SSH support for remote file operations
-import {SSHClient, parseSSHUrl} from '../utils/ssh/sshClient.js';
+import {parseSSHUrl} from '../utils/ssh/sshClient.js';
+import {sshConnectionPool} from '../utils/ssh/sshConnectionPool.js';
 import {
 	getWorkingDirectories,
 	type SSHConfig,
@@ -39,6 +40,21 @@ import {
 	isSafeRegexPattern,
 	processWithConcurrency,
 } from './utils/aceCodeSearch/search.utils.js';
+import {
+	splitSshUrl,
+	toSshUrl,
+	resolveRemotePath,
+} from './utils/aceCodeSearch/pathRemote.utils.js';
+import {
+	detectRemoteTools,
+	buildRemoteTextSearchCommand,
+	buildRemoteReferencesCommand,
+	buildRemoteDefinitionGrepCommand,
+	parseRemoteGrepOutput,
+	runRemoteCtags,
+	parseCtagsJsonOutput,
+	RemoteToolUnavailableError,
+} from './utils/aceCodeSearch/remote.utils.js';
 import {
 	INDEX_CACHE_DURATION,
 	BATCH_SIZE,
@@ -371,18 +387,40 @@ export class ACECodeSearchService {
 			throw new Error(`No SSH configuration found for: ${sshUrl}`);
 		}
 
-		const client = new SSHClient();
-		const connectResult = await client.connect(sshConfig);
-		if (!connectResult.success) {
-			throw new Error(`SSH connection failed: ${connectResult.error}`);
-		}
+		// Use the shared connection pool so repeated remote ACE actions reuse a single
+		// SSH/SFTP session instead of paying the connect + handshake cost every time.
+		return sshConnectionPool.withClient(sshConfig, client =>
+			client.readFile(parsed.path),
+		);
+	}
 
-		try {
-			const content = await client.readFile(parsed.path);
-			return content;
-		} finally {
-			client.disconnect();
+	/**
+	 * Resolve the SSH context for this service's basePath (when basePath is an
+	 * ssh:// URL). Throws if there is no SSH configuration registered for the
+	 * remote — callers should treat this as a non-fatal tool error.
+	 */
+	private async getRemoteBaseContext(): Promise<{
+		prefix: string;
+		root: string;
+		remoteKey: string;
+		sshConfig: SSHConfig;
+	}> {
+		const parts = splitSshUrl(this.basePath);
+		if (!parts) {
+			throw new Error(`Invalid SSH base path: ${this.basePath}`);
 		}
+		const sshConfig = await this.getSSHConfigForPath(this.basePath);
+		if (!sshConfig) {
+			throw new Error(
+				`No SSH configuration found for remote workspace: ${this.basePath}. Use /add-dir to register the remote directory first.`,
+			);
+		}
+		return {
+			prefix: parts.prefix,
+			root: parts.root,
+			remoteKey: `${parts.prefix}|${parts.root}`,
+			sshConfig,
+		};
 	}
 
 	/**
@@ -818,6 +856,12 @@ export class ACECodeSearchService {
 		maxResults: number = 100,
 	): Promise<CodeReference[]> {
 		this.markActivity();
+
+		// Remote workspaces use a server-side word-bounded grep instead of indexing.
+		if (this.basePath.startsWith('ssh://')) {
+			return this.remoteFindReferences(symbolName, maxResults);
+		}
+
 		const references: CodeReference[] = [];
 
 		// Load exclusion patterns
@@ -964,6 +1008,13 @@ export class ACECodeSearchService {
 		contextFile?: string,
 	): Promise<CodeSymbol | null> {
 		this.markActivity();
+
+		// Remote workspaces resolve definitions on the remote host (ctags preferred,
+		// grep pattern fallback). We never build an index on the local machine.
+		if (this.basePath.startsWith('ssh://')) {
+			return this.remoteFindDefinition(symbolName, contextFile);
+		}
+
 		await this.buildIndex();
 		await this.indexBuildQueue;
 
@@ -1548,6 +1599,13 @@ export class ACECodeSearchService {
 		Array<{filePath: string; line: number; column: number; content: string}>
 	> {
 		this.markActivity();
+
+		// Remote workspaces always run grep on the remote host; nothing about the
+		// local-only strategy (git grep / rg / grep / JS fallback) is reused.
+		if (this.basePath.startsWith('ssh://')) {
+			return this.remoteTextSearch(pattern, fileGlob, isRegex, maxResults);
+		}
+
 		const timeoutMs = TEXT_SEARCH_TIMEOUT_MS;
 
 		return new Promise((resolve, reject) => {
@@ -1875,6 +1933,19 @@ export class ACECodeSearchService {
 		maxResults: number = 50,
 	): Promise<SemanticSearchResult> {
 		this.markActivity();
+
+		// Remote workspaces use a one-shot ctags dump (or pattern grep fallback) and
+		// run FZF in memory on the small symbol-name list returned. No on-disk index.
+		if (this.basePath.startsWith('ssh://')) {
+			return this.remoteSemanticSearch(
+				query,
+				searchType,
+				language,
+				symbolType,
+				maxResults,
+			);
+		}
+
 		const startTime = Date.now();
 
 		// Get symbol search results
@@ -1921,6 +1992,403 @@ export class ACECodeSearchService {
 			searchTime,
 		};
 	}
+
+	// =========================================================================
+	// Remote (ssh://) implementations
+	// =========================================================================
+	//
+	// Design rules for the remote path:
+	// - All "scan the workspace" work runs on the remote host via SSHClient.exec().
+	// - We never build a symbol index on the local machine. Per-call results may be
+	//   cached on the remote side for REMOTE_CACHE_TTL_MS (see remote.utils.ts).
+	// - Each method gracefully degrades if a preferred remote tool is missing.
+	// - If even the bare minimum (grep) is unavailable, the method throws a
+	//   RemoteToolUnavailableError carrying an actionable message — this surfaces
+	//   to the model as a tool error but does NOT break the agent loop.
+
+	private async remoteTextSearch(
+		pattern: string,
+		fileGlob: string | undefined,
+		isRegex: boolean,
+		maxResults: number,
+	): Promise<
+		Array<{filePath: string; line: number; column: number; content: string}>
+	> {
+		// Local-side ReDoS guard mirrors the local executeTextSearch behavior.
+		if (isRegex) {
+			const safe = isSafeRegexPattern(pattern, MAX_REGEX_COMPLEXITY_SCORE);
+			if (!safe.isSafe) {
+				throw new Error(`Unsafe regex pattern: ${safe.reason}`);
+			}
+		}
+
+		const ctx = await this.getRemoteBaseContext();
+		return sshConnectionPool.withClient(ctx.sshConfig, async client => {
+			const toolset = await detectRemoteTools(client, ctx.root, ctx.remoteKey);
+			const built = buildRemoteTextSearchCommand({
+				remoteRoot: ctx.root,
+				pattern,
+				fileGlob,
+				isRegex,
+				maxResults,
+				toolset,
+			});
+			if (!built) {
+				throw new RemoteToolUnavailableError(
+					'Remote text search is unavailable: none of git grep / ripgrep / grep is installed on the remote host.',
+				);
+			}
+			const exec = await client.exec(built.command, {
+				timeout: TEXT_SEARCH_TIMEOUT_MS,
+			});
+			// `grep`-family tools return exit code 1 to mean "no matches", which we
+			// must not treat as an error. Any other non-zero with empty stdout we
+			// surface so the caller knows something went wrong (but don't throw to
+			// avoid breaking the agent loop — return an empty array instead).
+			if (!exec.stdout && exec.code !== 0 && exec.code !== 1) {
+				logger.warn(
+					`Remote ${built.tool} exited with code ${
+						exec.code
+					}: ${exec.stderr?.slice(0, 200)}`,
+				);
+				return [];
+			}
+			const hits = parseRemoteGrepOutput(exec.stdout);
+			return hits.slice(0, maxResults).map(hit => ({
+				filePath: toSshUrl(
+					this.basePath,
+					resolveRemotePath(ctx.root, hit.filePath),
+				),
+				line: hit.line,
+				column: hit.column,
+				content: hit.content,
+			}));
+		});
+	}
+
+	private async remoteFindReferences(
+		symbolName: string,
+		maxResults: number,
+	): Promise<CodeReference[]> {
+		const ctx = await this.getRemoteBaseContext();
+		return sshConnectionPool.withClient(ctx.sshConfig, async client => {
+			const toolset = await detectRemoteTools(client, ctx.root, ctx.remoteKey);
+			const built = buildRemoteReferencesCommand({
+				remoteRoot: ctx.root,
+				symbolName,
+				maxResults,
+				toolset,
+			});
+			if (!built) {
+				throw new RemoteToolUnavailableError(
+					'Remote find_references is unavailable: none of git grep / ripgrep / grep is installed on the remote host.',
+				);
+			}
+			const exec = await client.exec(built.command, {
+				timeout: TEXT_SEARCH_TIMEOUT_MS,
+			});
+			if (!exec.stdout && exec.code !== 0 && exec.code !== 1) {
+				logger.warn(
+					`Remote find_references grep exited with code ${
+						exec.code
+					}: ${exec.stderr?.slice(0, 200)}`,
+				);
+				return [];
+			}
+			const hits = parseRemoteGrepOutput(exec.stdout).slice(0, maxResults);
+			return hits.map<CodeReference>(hit => {
+				const lineContent = hit.content;
+				let referenceType: CodeReference['referenceType'] = 'usage';
+				if (/\bimport\b/.test(lineContent)) {
+					referenceType = 'import';
+				} else if (
+					new RegExp(
+						`(?:function|class|interface|const|let|var|def|func|type|enum|struct|trait|impl|fn)\\s+${symbolName.replace(
+							/[.*+?^${}()|[\]\\]/g,
+							'\\$&',
+						)}\\b`,
+					).test(lineContent)
+				) {
+					referenceType = 'definition';
+				} else if (
+					/[:<]/.test(lineContent) &&
+					lineContent.includes(symbolName)
+				) {
+					referenceType = 'type';
+				}
+				return {
+					symbol: symbolName,
+					filePath: toSshUrl(
+						this.basePath,
+						resolveRemotePath(ctx.root, hit.filePath),
+					),
+					line: hit.line,
+					column: hit.column,
+					context: lineContent,
+					referenceType,
+				};
+			});
+		});
+	}
+
+	private async remoteFindDefinition(
+		symbolName: string,
+		_contextFile?: string,
+	): Promise<CodeSymbol | null> {
+		const ctx = await this.getRemoteBaseContext();
+		return sshConnectionPool.withClient(ctx.sshConfig, async client => {
+			const toolset = await detectRemoteTools(client, ctx.root, ctx.remoteKey);
+
+			// Strategy 1: ctags — accurate kind/scope, single round-trip thanks to cache.
+			if (toolset.hasCtags) {
+				try {
+					const ndjson = await runRemoteCtags(client, ctx.root, ctx.remoteKey);
+					const symbols = parseCtagsJsonOutput(ndjson, {
+						remoteRoot: ctx.root,
+					});
+					const candidates = symbols.filter(s => s.name === symbolName);
+					const preferred =
+						candidates.find(
+							s =>
+								s.type === 'function' ||
+								s.type === 'class' ||
+								s.type === 'interface' ||
+								s.type === 'method',
+						) || candidates[0];
+					if (preferred) {
+						return {
+							...preferred,
+							filePath: toSshUrl(
+								this.basePath,
+								resolveRemotePath(ctx.root, preferred.filePath),
+							),
+						};
+					}
+				} catch (err) {
+					logger.warn(
+						'remoteFindDefinition: ctags failed, falling back to grep',
+						err,
+					);
+				}
+			}
+
+			// Strategy 2: grep pattern matching definition shapes.
+			const built = buildRemoteDefinitionGrepCommand({
+				remoteRoot: ctx.root,
+				symbolName,
+				toolset,
+				maxResults: 10,
+			});
+			if (!built) {
+				throw new RemoteToolUnavailableError(
+					'Remote find_definition is unavailable: ctags and grep are both missing on the remote host.',
+				);
+			}
+			const exec = await client.exec(built.command, {
+				timeout: TEXT_SEARCH_TIMEOUT_MS,
+			});
+			if (!exec.stdout && exec.code !== 0 && exec.code !== 1) {
+				logger.warn(
+					`Remote find_definition grep exited with code ${
+						exec.code
+					}: ${exec.stderr?.slice(0, 200)}`,
+				);
+				return null;
+			}
+			const hit = parseRemoteGrepOutput(exec.stdout)[0];
+			if (!hit) return null;
+			const fullPath = resolveRemotePath(ctx.root, hit.filePath);
+			const sshUrl = toSshUrl(this.basePath, fullPath);
+			const language = detectLanguage(hit.filePath) || 'plaintext';
+			return {
+				name: symbolName,
+				type: 'function',
+				filePath: sshUrl,
+				line: hit.line,
+				column: hit.column,
+				signature: hit.content,
+				language,
+			} satisfies CodeSymbol;
+		});
+	}
+
+	private async remoteSemanticSearch(
+		query: string,
+		searchType: 'definition' | 'usage' | 'implementation' | 'all',
+		language: string | undefined,
+		symbolType: CodeSymbol['type'] | undefined,
+		maxResults: number,
+	): Promise<SemanticSearchResult> {
+		const startTime = Date.now();
+		const ctx = await this.getRemoteBaseContext();
+		const indexed: CodeSymbol[] = await sshConnectionPool.withClient(
+			ctx.sshConfig,
+			async client => {
+				const toolset = await detectRemoteTools(
+					client,
+					ctx.root,
+					ctx.remoteKey,
+				);
+
+				// Strategy 1: ctags one-shot. Cached for REMOTE_CACHE_TTL_MS, so repeated
+				// semantic_search calls don't re-run ctags on the remote.
+				if (toolset.hasCtags) {
+					try {
+						const ndjson = await runRemoteCtags(
+							client,
+							ctx.root,
+							ctx.remoteKey,
+						);
+						return parseCtagsJsonOutput(ndjson, {
+							remoteRoot: ctx.root,
+							maxSymbols: MAX_FZF_SYMBOL_NAMES,
+						});
+					} catch (err) {
+						logger.warn(
+							'remoteSemanticSearch: ctags failed, falling back to grep heuristic',
+							err,
+						);
+					}
+				}
+
+				// Strategy 2: degrade to pattern grep. We grep for common definition
+				// shapes across the workspace and treat each hit as a symbol with the
+				// matched word. Precision is lower than ctags but still useful.
+				if (!toolset.hasGrep && !toolset.hasRg && !toolset.hasGit) {
+					throw new RemoteToolUnavailableError(
+						'Remote semantic_search is unavailable: ctags and all grep variants are missing on the remote host.',
+					);
+				}
+				const built = buildRemoteDefinitionGrepCommand({
+					remoteRoot: ctx.root,
+					// Use a generic pattern that captures any of the definition keywords
+					// followed by an identifier; the parser below extracts the name.
+					symbolName: '[A-Za-z_][A-Za-z0-9_]*',
+					toolset,
+					maxResults: MAX_FZF_SYMBOL_NAMES,
+				});
+				if (!built) {
+					throw new RemoteToolUnavailableError(
+						'Remote semantic_search fallback failed to construct a grep command.',
+					);
+				}
+				const exec = await client.exec(built.command, {
+					timeout: TEXT_SEARCH_TIMEOUT_MS,
+				});
+				if (!exec.stdout && exec.code !== 0 && exec.code !== 1) {
+					logger.warn(
+						`Remote semantic_search grep fallback exited with code ${
+							exec.code
+						}: ${exec.stderr?.slice(0, 200)}`,
+					);
+					return [];
+				}
+				const hits = parseRemoteGrepOutput(exec.stdout);
+				const out: CodeSymbol[] = [];
+				const nameExtractor =
+					/(?:function|class|interface|def|func|const|let|var|type|enum|struct|trait|impl|fn)\s+([A-Za-z_][A-Za-z0-9_]*)/;
+				for (const hit of hits) {
+					const m = hit.content.match(nameExtractor);
+					if (!m || !m[1]) continue;
+					out.push({
+						name: m[1],
+						type: 'function',
+						filePath: hit.filePath,
+						line: hit.line,
+						column: hit.column,
+						signature: hit.content,
+						language: detectLanguage(hit.filePath) || 'plaintext',
+					});
+					if (out.length >= MAX_FZF_SYMBOL_NAMES) break;
+				}
+				return out;
+			},
+		);
+
+		// Apply filters (mirror the local semanticSearch behavior).
+		let candidates = indexed;
+		if (symbolType) {
+			candidates = candidates.filter(s => s.type === symbolType);
+		}
+		if (language) {
+			candidates = candidates.filter(s => s.language === language);
+		}
+
+		// Build a one-shot FZF over the candidate symbol names. The instance is
+		// scoped to this call — we never persist it on the service.
+		const uniqueNames = Array.from(new Set(candidates.map(s => s.name)));
+		let matchedSet: Set<string>;
+		try {
+			const fzf = new Fzf(uniqueNames, {
+				selector: (item: string) => item,
+				casing: 'case-insensitive',
+				limit: maxResults,
+			});
+			const matched = fzf.find(query);
+			matchedSet = new Set(matched.map((r: FzfResultItem<string>) => r.item));
+		} catch (err) {
+			logger.info(
+				`Remote semantic_search FZF failed (${
+					err instanceof Error ? err.message : String(err)
+				}), falling back to substring match`,
+			);
+			const q = query.toLowerCase();
+			matchedSet = new Set(
+				uniqueNames.filter(n => n.toLowerCase().includes(q)),
+			);
+		}
+
+		let symbols = candidates
+			.filter(s => matchedSet.has(s.name))
+			.slice(0, maxResults)
+			.map(s => ({
+				...s,
+				filePath: toSshUrl(
+					this.basePath,
+					resolveRemotePath(ctx.root, s.filePath),
+				),
+			}));
+
+		// Filter by searchType (mirrors the local implementation).
+		if (searchType === 'definition') {
+			symbols = symbols.filter(
+				s =>
+					s.type === 'function' || s.type === 'class' || s.type === 'interface',
+			);
+		} else if (searchType === 'usage') {
+			symbols = [];
+		} else if (searchType === 'implementation') {
+			symbols = symbols.filter(
+				s => s.type === 'function' || s.type === 'method' || s.type === 'class',
+			);
+		}
+
+		// References for the top matches (mirrors local behavior). These reuse the
+		// remoteFindReferences pipeline, which is itself grep-backed and cheap.
+		let references: CodeReference[] = [];
+		if (searchType === 'usage' || searchType === 'all') {
+			const top = symbols.slice(0, 5);
+			for (const sym of top) {
+				try {
+					const refs = await this.remoteFindReferences(sym.name, maxResults);
+					references.push(...refs);
+				} catch (err) {
+					logger.warn(
+						`remoteSemanticSearch: gathering references for "${sym.name}" failed`,
+						err,
+					);
+				}
+			}
+		}
+
+		return {
+			query,
+			symbols,
+			references,
+			totalResults: symbols.length + references.length,
+			searchTime: Date.now() - startTime,
+		};
+	}
 }
 
 // MCP Tool definitions for integration
@@ -1929,6 +2397,8 @@ export const mcpTools = [
 	{
 		name: 'ace-search',
 		description: `ACE Code Search: Unified code search tool. Use required field "action" — one of find_definition | find_references | semantic_search | file_outline | text_search.
+
+REMOTE SSH SUPPORT: All five actions support remote workspaces registered via /add-dir (paths like ssh://user@host:port/...). When the workspace is remote, searches run on the remote host via grep/ripgrep/git grep (and ctags when available); results are returned as ssh:// URLs. The remote host must have at least \`grep\` installed; if it does not, the action returns a tool error explaining the missing dependency but does NOT crash the agent loop.
 
 PARALLEL CALLS ONLY: MUST pair with other tools (ace-search + filesystem-read/terminal-execute/etc).
 
@@ -2029,7 +2499,7 @@ EXAMPLES:
 				filePath: {
 					type: 'string',
 					description:
-						'For action=file_outline: path to the file to get outline for (relative to workspace root, or ssh:// URL).',
+						'For action=file_outline: path to the file to get outline for (relative to workspace root, or ssh:// URL). Remote files (ssh://...) are supported transparently.',
 				},
 				includeContext: {
 					type: 'boolean',
