@@ -29,6 +29,12 @@ _在终端中进行 Agentic 编程_
   <img src="https://contrib.rocks/image?repo=MayDay-wpf/snow-cli" />
 </a>
 
+## 赞助商
+
+| 赞助商                                | 介绍                  |
+| ------------------------------------- | --------------------- |
+| [acker798.xyz](https://acker798.xyz/) | AI 中转站，支持 Codex |
+
 ![alt text](docs/images/image_zh.png)
 
 ![alt text](docs/images/image_zh2.png)

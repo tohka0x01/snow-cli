@@ -29,6 +29,12 @@ _Agentic coding in your terminal_
   <img src="https://contrib.rocks/image?repo=MayDay-wpf/snow-cli" />
 </a>
 
+## Sponsors
+
+| Sponsor                               | Description                      |
+| ------------------------------------- | -------------------------------- |
+| [acker798.xyz](https://acker798.xyz/) | AI Relay Station, supports Codex |
+
 ![alt text](docs/images/image.png)
 
 ![alt text](docs/images/image2.png)
