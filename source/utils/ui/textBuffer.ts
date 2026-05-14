@@ -372,6 +372,46 @@ export class TextBuffer {
 	}
 
 	/**
+	 * 插入临时"图片上传中"占位符，用于剪贴板图片粘贴时的视觉反馈。
+	 * 与 insertPastingIndicator 共用 tempPastingPlaceholder 字段，
+	 * 任意时刻只允许一个临时占位符存在。
+	 */
+	insertImageLoadingIndicator(): void {
+		if (this.tempPastingPlaceholder) {
+			return;
+		}
+		this.tempPastingPlaceholder = `[image upload...]`;
+		this.insertPlainText(this.tempPastingPlaceholder);
+		this.scheduleUpdate();
+	}
+
+	/**
+	 * 显式移除当前的临时占位符（粘贴中 / 图片上传中）。
+	 * 用于剪贴板读取失败或回退到文本路径之前清理 UI。
+	 */
+	removeTempPlaceholder(): void {
+		if (!this.tempPastingPlaceholder) return;
+		const placeholderIndex = this.content.indexOf(this.tempPastingPlaceholder);
+		if (placeholderIndex !== -1) {
+			const placeholderLength = cpLen(this.tempPastingPlaceholder);
+			this.content =
+				this.content.slice(0, placeholderIndex) +
+				this.content.slice(
+					placeholderIndex + this.tempPastingPlaceholder.length,
+				);
+			if (this.cursorIndex > placeholderIndex) {
+				this.cursorIndex = Math.max(
+					placeholderIndex,
+					this.cursorIndex - placeholderLength,
+				);
+			}
+		}
+		this.tempPastingPlaceholder = null;
+		this.recalculateVisualState();
+		this.scheduleUpdate();
+	}
+
+	/**
 	 * 插入文本占位符：显示 placeholderText，但 getFullText() 会还原为原始 content。
 	 * 用于 skills 注入等“只做视觉隐藏”的场景。
 	 */
@@ -1487,6 +1527,12 @@ export class TextBuffer {
 	 * 插入图片数据（使用统一的占位符系统）
 	 */
 	insertImage(base64Data: string, mimeType: string): void {
+		// 如果存在临时"图片上传中/粘贴中"占位符，先移除它
+		// 这样图片标签就能无缝替换 loading 标签
+		if (this.tempPastingPlaceholder) {
+			this.removeTempPlaceholder();
+		}
+
 		// 清理 base64 数据：移除所有空白字符（包括换行符）
 		// PowerShell/macOS 的 base64 编码可能包含换行符
 		const cleanedBase64 = base64Data.replace(/\s+/g, '');

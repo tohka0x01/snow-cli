@@ -1,8 +1,13 @@
 import {useCallback} from 'react';
-import {execSync} from 'child_process';
+import {exec} from 'child_process';
+import {promisify} from 'util';
 import {TextBuffer} from '../../utils/ui/textBuffer.js';
 import {logger} from '../../utils/core/logger.js';
 import {isWSL} from '../../mcp/utils/websearch/browser.utils.js';
+
+// 使用异步 exec 替代 execSync，避免阻塞 React 渲染线程，
+// 这样 [image upload...] loading 占位符可以及时显示。
+const execAsync = promisify(exec);
 
 export function useClipboard(
 	buffer: TextBuffer,
@@ -11,6 +16,23 @@ export function useClipboard(
 	triggerUpdate: () => void,
 ) {
 	const pasteFromClipboard = useCallback(async () => {
+		// 立即插入 "[image upload...]" 临时占位符并触发渲染，
+		// 让用户在等待剪贴板读取（可能耗时数秒）期间有视觉反馈。
+		buffer.insertImageLoadingIndicator();
+		{
+			const text = buffer.getFullText();
+			const cursorPos = buffer.getCursorPosition();
+			updateCommandPanelState(text);
+			updateFilePickerState(text, cursorPos);
+		}
+		triggerUpdate();
+
+		// 让出事件循环，确保 React 完成至少一次渲染 commit，
+		// 否则后续的 await 仍可能在第一次 paint 之前阻塞 UI。
+		await new Promise(resolve => setTimeout(resolve, 0));
+
+		let imageInserted = false;
+
 		try {
 			const isWslEnv = process.platform === 'linux' && isWSL();
 			const psCmd = isWslEnv ? 'powershell.exe' : 'powershell';
@@ -55,33 +77,34 @@ export function useClipboard(
 						// WSL: bash expands $var inside double-quotes, mangling the script.
 						// Use -EncodedCommand (base64 UTF-16LE) to bypass all shell interpretation.
 						const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
-						base64Raw = execSync(
+						const {stdout} = await execAsync(
 							`${psCmd} -NoProfile -EncodedCommand ${encoded}`,
 							{
 								encoding: 'utf-8',
 								timeout: 10000,
 								maxBuffer: 50 * 1024 * 1024,
-								stdio: ['pipe', 'pipe', 'pipe'],
 							},
 						);
+						base64Raw = stdout;
 					} else {
-						base64Raw = execSync(
+						const {stdout} = await execAsync(
 							`${psCmd} -NoProfile -Command "${psScript}"`,
 							{
 								encoding: 'utf-8',
 								timeout: 10000,
 								maxBuffer: 50 * 1024 * 1024,
-								stdio: ['pipe', 'pipe', 'pipe'],
 							},
 						);
+						base64Raw = stdout;
 					}
 
 					// 高效清理：一次性移除所有空白字符
 					const base64 = base64Raw.replace(/\s/g, '');
 
 					if (base64 && base64.length > 100) {
-						// 直接传入 base64 数据，不需要 data URL 前缀
+						// insertImage 内部会自动移除 "[image upload...]" 占位符
 						buffer.insertImage(base64, 'image/png');
+						imageInserted = true;
 						const text = buffer.getFullText();
 						const cursorPos = buffer.getCursorPosition();
 						updateCommandPanelState(text);
@@ -107,24 +130,25 @@ on error
 	return "noImage"
 end try'`;
 
-					const hasImage = execSync(checkScript, {
+					const {stdout: hasImageStdout} = await execAsync(checkScript, {
 						encoding: 'utf-8',
 						timeout: 2000,
-					}).trim();
+					});
+					const hasImage = hasImageStdout.trim();
 
 					if (hasImage === 'hasImage') {
 						// Save clipboard image to temporary file and read it
 						const tmpFile = `/tmp/snow_clipboard_${Date.now()}.png`;
 						const saveScript = `osascript -e 'set imgData to the clipboard as «class PNGf»' -e 'set fileRef to open for access POSIX file "${tmpFile}" with write permission' -e 'write imgData to fileRef' -e 'close access fileRef'`;
 
-						execSync(saveScript, {
+						await execAsync(saveScript, {
 							encoding: 'utf-8',
 							timeout: 3000,
 						});
 
 						// Use sips to resize if needed, then convert to base64
 						// First check image size
-						const sizeCheck = execSync(
+						const {stdout: sizeCheck} = await execAsync(
 							`sips -g pixelWidth -g pixelHeight "${tmpFile}" | grep -E "pixelWidth|pixelHeight" | awk '{print $2}'`,
 							{
 								encoding: 'utf-8',
@@ -141,7 +165,7 @@ end try'`;
 							const ratio = Math.min(maxSize / width, maxSize / height);
 							const newWidth = Math.floor(width * ratio);
 							const newHeight = Math.floor(height * ratio);
-							execSync(
+							await execAsync(
 								`sips -z ${newHeight} ${newWidth} "${tmpFile}" --out "${tmpFile}"`,
 								{
 									encoding: 'utf-8',
@@ -151,24 +175,28 @@ end try'`;
 						}
 
 						// Read the file as base64 with optimized buffer
-						const base64Raw = execSync(`base64 -i "${tmpFile}"`, {
-							encoding: 'utf-8',
-							timeout: 5000,
-							maxBuffer: 50 * 1024 * 1024, // 50MB buffer
-						});
+						const {stdout: base64Raw} = await execAsync(
+							`base64 -i "${tmpFile}"`,
+							{
+								encoding: 'utf-8',
+								timeout: 5000,
+								maxBuffer: 50 * 1024 * 1024, // 50MB buffer
+							},
+						);
 						// 高效清理：一次性移除所有空白字符
 						const base64 = base64Raw.replace(/\s/g, '');
 
 						// Clean up temp file
 						try {
-							execSync(`rm "${tmpFile}"`, {timeout: 1000});
+							await execAsync(`rm "${tmpFile}"`, {timeout: 1000});
 						} catch (e) {
 							// Ignore cleanup errors
 						}
 
 						if (base64 && base64.length > 100) {
-							// 直接传入 base64 数据，不需要 data URL 前缀
+							// insertImage 内部会自动移除 "[image upload...]" 占位符
 							buffer.insertImage(base64, 'image/png');
+							imageInserted = true;
 							const text = buffer.getFullText();
 							const cursorPos = buffer.getCursorPosition();
 							updateCommandPanelState(text);
@@ -182,28 +210,34 @@ end try'`;
 				}
 			}
 
+			// 没读到图片，移除 loading 占位符再走文本路径，
+			// 避免 [image upload...] 留在输入框里。
+			buffer.removeTempPlaceholder();
+
 			// If no image, try to read text from clipboard
 			try {
 				let clipboardText = '';
 				if (process.platform === 'win32' || isWslEnv) {
-					clipboardText = execSync(
+					const {stdout} = await execAsync(
 						`${psCmd} -NoProfile -Command "Get-Clipboard"`,
 						{
 							encoding: 'utf-8',
 							timeout: 2000,
-							stdio: ['pipe', 'pipe', 'pipe'],
 						},
-					).trim();
+					);
+					clipboardText = stdout.trim();
 				} else if (process.platform === 'darwin') {
-					clipboardText = execSync('pbpaste', {
+					const {stdout} = await execAsync('pbpaste', {
 						encoding: 'utf-8',
 						timeout: 2000,
-					}).trim();
+					});
+					clipboardText = stdout.trim();
 				} else {
-					clipboardText = execSync('xclip -selection clipboard -o', {
+					const {stdout} = await execAsync('xclip -selection clipboard -o', {
 						encoding: 'utf-8',
 						timeout: 2000,
-					}).trim();
+					});
+					clipboardText = stdout.trim();
 				}
 
 				if (clipboardText) {
@@ -219,6 +253,12 @@ end try'`;
 			}
 		} catch (error) {
 			logger.error('Failed to read from clipboard:', error);
+		} finally {
+			// 兜底：确保 loading 占位符在任何异常路径下都不会残留
+			if (!imageInserted) {
+				buffer.removeTempPlaceholder();
+				triggerUpdate();
+			}
 		}
 	}, [buffer, updateCommandPanelState, updateFilePickerState, triggerUpdate]);
 
